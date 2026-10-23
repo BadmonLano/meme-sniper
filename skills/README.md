@@ -23,6 +23,8 @@ The skills are the agent's playbook. The bots produce data and packets; the skil
 
 Before acting on any trade, also read `rules/rules.md` (the owner's rules; they override skill defaults but never the hard safety gates).
 
+All of these show in the console under **6 Console → 4 Skills** (including `gork-lore` and `_templates`).
+
 `automations/` has one prompt per inbox lane and says which skill each lane uses.
 
 ## Loading meme-hunter in parts

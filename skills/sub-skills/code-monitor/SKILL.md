@@ -613,7 +613,7 @@ Before writing a patch:
 3. Request specific source sections via meeting_watcher (`show me <bot>'s <function>`)
 
 
-5. For knob patches: read `bots/bot_config.md` + confirm getenv miss / bare constant twin in source
+5. For knob patches: read `bots/bot_config.md` if you keep one (optional; else `bots/.env.example` and `bots/settings_labels.json`) + confirm getenv miss / bare constant twin in source
 
 ### Step 3: Write the patch in your own context
 
@@ -954,7 +954,7 @@ If any of those flag, fix them before processing new packets.
 
 ## Hard Relationships
 
-- **Reads:** `bot_logs/bots_list.json`, `bot_logs/metrics_current.json`, `bot_logs/source_snapshots/`, `json_relay/code_tuner_state.json`, `bots/bot_config.md`, every `code_tuner - *.md` packet code_tuner writes
+- **Reads:** `bot_logs/bots_list.json`, `bot_logs/metrics_current.json`, `bot_logs/source_snapshots/`, `json_relay/code_tuner_state.json`, `bots/bot_config.md` (optional, only if you keep a knob doc), every `code_tuner - *.md` packet code_tuner writes
 
 - **Writes:**
 

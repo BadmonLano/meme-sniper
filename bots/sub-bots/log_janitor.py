@@ -1671,4 +1671,7 @@ def purge_retired_files():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:   # Ctrl+C: stop quietly
+        sys.exit(0)

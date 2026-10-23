@@ -1151,6 +1151,414 @@
       "section": "Clone runner",
       "unit": "min",
       "src": "env"
+    },
+    "ALERT_MISSING_WARN_ONCE": {
+      "label": "Warn once about a missing alert key",
+      "section": "Alerts",
+      "unit": "bool",
+      "src": "env"
+    },
+    "BUNDLE_CHECK": {
+      "label": "Bundle check on new tokens",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "BUNDLE_CHECK_MAX_AGE_MIN": {
+      "label": "Bundle check: max token age",
+      "section": "Entry filters",
+      "unit": "min",
+      "src": "env"
+    },
+    "BUNDLE_FLAG_MIN_TX": {
+      "label": "Bundle check: same-block buys that flag a bundle",
+      "section": "Entry filters",
+      "unit": "trades",
+      "src": "env"
+    },
+    "BUY_AUTHORITY_FAIL_CLOSED": {
+      "label": "Block buy if mint account unreadable",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "BUY_AUTHORITY_GATE": {
+      "label": "Block tokens with live mint/freeze authority",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "CANDIDATE_FLOOR": {
+      "label": "Candidate card floor (liquidity, wash, bundle)",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "CANDIDATE_MIN_LIQ_USD": {
+      "label": "Candidate card floor: min liquidity",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "env"
+    },
+    "CUSTOM_PAIR_ACTION": {
+      "label": "Custom pair action",
+      "section": "Entry filters",
+      "unit": "choice",
+      "src": "env"
+    },
+    "DAILY_BUY_CAP": {
+      "label": "Daily buy cap",
+      "section": "Pauses",
+      "unit": "trades",
+      "src": "env"
+    },
+    "DAILY_LOSS_STOP_SOL": {
+      "label": "Daily loss stop",
+      "section": "Pauses",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "FAKE_XSTOCK_ACTION": {
+      "label": "Fake xStock action",
+      "section": "Entry filters",
+      "unit": "choice",
+      "src": "env"
+    },
+    "FEE_SWEEP_NUMERIC_CODES": {
+      "label": "Fee sweep: numeric error codes",
+      "section": "Launch",
+      "unit": "list",
+      "src": "env"
+    },
+    "FEE_SWEEP_RECHECK_MIN": {
+      "label": "Fee sweep recheck interval",
+      "section": "Launch",
+      "unit": "min",
+      "src": "env"
+    },
+    "GITHUB_OAUTH_CLIENT_ID": {
+      "label": "GitHub OAuth client ID",
+      "section": "Data APIs",
+      "unit": "text",
+      "src": "env"
+    },
+    "JUPITER_SWAP_V2": {
+      "label": "Use Jupiter swap v2",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "LAUNCH_ALLOW_NO_REPO": {
+      "label": "Allow launches without a repo",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "LOSS_STREAK_PAUSE": {
+      "label": "Loss-streak pause: losses in a row",
+      "section": "Pauses",
+      "unit": "trades",
+      "src": "env"
+    },
+    "LOSS_STREAK_PAUSE_HOURS": {
+      "label": "Loss-streak pause length",
+      "section": "Pauses",
+      "unit": "h",
+      "src": "env"
+    },
+    "MAX_OPEN_POSITIONS": {
+      "label": "Max open positions",
+      "section": "Sizing",
+      "unit": "x",
+      "src": "env"
+    },
+    "MAX_PUMP_5M_PCT": {
+      "label": "Skip if up more than this in 5m",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "METEORA_DRAIN_ALL_VENUES": {
+      "label": "Drain guard on all venues",
+      "section": "Exits & trailing",
+      "unit": "bool",
+      "src": "env"
+    },
+    "METEORA_DRAIN_DUMP_PCT": {
+      "label": "Drain guard: price dump",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "METEORA_DRAIN_GUARD": {
+      "label": "Meteora drain guard",
+      "section": "Exits & trailing",
+      "unit": "bool",
+      "src": "env"
+    },
+    "METEORA_DRAIN_LIQ_DROP_PCT": {
+      "label": "Drain guard: liquidity drop",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "MINT_COOLDOWN_HOURS": {
+      "label": "Same-token cooldown after a stop-loss",
+      "section": "Pauses",
+      "unit": "h",
+      "src": "env"
+    },
+    "MOONSHOT_LISTENER": {
+      "label": "Moonshot launch listener",
+      "section": "Scanners & monitors",
+      "unit": "bool",
+      "src": "env"
+    },
+    "MOONSHOT_MAX_TX": {
+      "label": "Moonshot listener: max tx per poll",
+      "section": "Scanners & monitors",
+      "unit": "trades",
+      "src": "env"
+    },
+    "MOONSHOT_POLL_S": {
+      "label": "Moonshot poll interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "OWNER_MAX_BUY_SOL": {
+      "label": "Hard max size per buy",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "PEAK_SANITY": {
+      "label": "Peak sanity check",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "PEAK_SANITY_MAX_X": {
+      "label": "Peak sanity: max peak multiple",
+      "section": "Entry filters",
+      "unit": "x",
+      "src": "env"
+    },
+    "RECLAIM_DEV_FAIL_CLOSED": {
+      "label": "No second-wind ping if dev holdings unreadable",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "REPO_WATCH_INTERVAL_S": {
+      "label": "Repo watch interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "REPO_WATCH_TOKEN": {
+      "label": "Repo watch token",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "REPO_WATCH_USER": {
+      "label": "Repo watch GitHub user",
+      "section": "Data APIs",
+      "unit": "text",
+      "src": "env"
+    },
+    "RESERVE_GUARD": {
+      "label": "SOL reserve guard",
+      "section": "Sizing",
+      "unit": "bool",
+      "src": "env"
+    },
+    "RUG_FAIL_CLOSED": {
+      "label": "Block if rug sources unreachable",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "RUG_FAIL_CLOSED_MIN_ERRORS": {
+      "label": "Rug fail-closed: unreachable sources",
+      "section": "Entry filters",
+      "unit": "x",
+      "src": "env"
+    },
+    "SECOND_WIND_BASE_RANGE_PCT": {
+      "label": "Second wind: base range",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "SECOND_WIND_MAX_OFF_PEAK_PCT": {
+      "label": "Second wind: max off peak",
+      "section": "Entry filters",
+      "unit": "% off ATH",
+      "src": "env"
+    },
+    "SECOND_WIND_SCORE": {
+      "label": "Second wind: ping score",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SECOND_WIND_V2": {
+      "label": "Second wind v2 (hourly candles)",
+      "section": "Scanners & monitors",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SIGNAL_RECHECK_USE_SIGNAL_MCAP": {
+      "label": "Drift recheck uses mcap_at_signal",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SIZE_HALVE_AFTER_LOSSES": {
+      "label": "Halve size after losses in a row",
+      "section": "Sizing",
+      "unit": "trades",
+      "src": "env"
+    },
+    "SNIPER_FILTER_SEED_DEFAULT": {
+      "label": "Copy default filter file on first run",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_GH_PUSH_OK": {
+      "label": "Allow GitHub pushes (with --owner-ok)",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_LAUNCH_POLL_S": {
+      "label": "Launch request poll interval",
+      "section": "Launch",
+      "unit": "s",
+      "src": "env"
+    },
+    "SNIPER_REPO_DROPS_WATCH": {
+      "label": "Watch repo_drops/ for uploads",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_REVIEWER": {
+      "label": "Repo suggestion reviewer (agent name)",
+      "section": "Launch",
+      "unit": "text",
+      "src": "env"
+    },
+    "SNIPER_SUGGEST_DAILY_CAP": {
+      "label": "Repo suggestions per day per contributor",
+      "section": "Launch",
+      "unit": "x",
+      "src": "env"
+    },
+    "SNIPER_WIZARD_SAFETY": {
+      "label": "Wizard asks Safety caps questions",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "TRADING_HOURS": {
+      "label": "Trading hours (blank = always)",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "TRADING_HOURS_GATES_SCAN": {
+      "label": "No new cards outside trading hours",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "env"
+    },
+    "TRADING_TZ": {
+      "label": "Trading hours timezone",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "TRENCH_NEWS_ENABLED": {
+      "label": "Trench news",
+      "section": "Scanners & monitors",
+      "unit": "bool",
+      "src": "env"
+    },
+    "TRENCH_NEWS_INTERVAL_S": {
+      "label": "Trench news interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "TRENCH_NEWS_MIN_VOLUME_USD": {
+      "label": "Trench news: min volume",
+      "section": "Scanners & monitors",
+      "unit": "USD",
+      "src": "env"
+    },
+    "TRENCH_NEWS_PENDING_DAYS": {
+      "label": "Trench news: pending days",
+      "section": "Scanners & monitors",
+      "unit": "days",
+      "src": "env"
+    },
+    "VENUE_ADAPT": {
+      "label": "Adapt to venue",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "WASH_AVG_TRADE_USD": {
+      "label": "Wash check: avg trade size",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "env"
+    },
+    "WASH_CHECK": {
+      "label": "Wash-trading check",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "WASH_VOL_LIQ_RATIO": {
+      "label": "Wash check: volume/liquidity ratio",
+      "section": "Entry filters",
+      "unit": "ratio",
+      "src": "env"
+    },
+    "XSTOCKS_CHECK": {
+      "label": "Fake xStocks check",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SIGNAL_RECHECK": {
+      "label": "Fresh recheck before every buy",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SIGNAL_RECHECK_MIN_LIQ_USD": {
+      "label": "Recheck: min liquidity",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "env"
+    },
+    "SIGNAL_RECHECK_MAX_DRIFT_PCT": {
+      "label": "Recheck: max market-cap move since signal",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "SNIPER_WIZARD_REMINDER": {
+      "label": "Wizard reminds you to schedule inbox checks",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
     }
   }
 }

@@ -603,6 +603,17 @@ _TUNER_HISTORY_DIR  = _TUNER_DIR / "tune history"
 _TUNER_DIR.mkdir(parents=True, exist_ok=True)
 _TUNER_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 MEME_SNIPER_FILTER_FILE     = _TUNER_DIR / "meme_sniper_filter.json"
+
+# v1.0.1: the tracked file is meme_sniper_filter.default.json; the live copy (meme_sniper_filter.json) is
+# git-ignored, so runs never dirty a clone. First run copies the default. SNIPER_FILTER_SEED_DEFAULT=0 = no copy.
+MEME_SNIPER_FILTER_DEFAULT = MEME_SNIPER_FILTER_FILE.with_name("meme_sniper_filter.default.json")
+try:
+    if (not MEME_SNIPER_FILTER_FILE.exists() and MEME_SNIPER_FILTER_DEFAULT.exists()
+            and str(os.environ.get("SNIPER_FILTER_SEED_DEFAULT", "1")).strip().lower() not in ("0", "false", "off", "no")):
+        import shutil as _fshutil
+        _fshutil.copyfile(MEME_SNIPER_FILTER_DEFAULT, MEME_SNIPER_FILTER_FILE)
+except Exception:
+    pass
 MEME_SNIPER_FILTER_HISTORY  = _TUNER_HISTORY_DIR / "meme_sniper_filter_history.jsonl"
 # Per-knob in-file history cap. When inline history exceeds this many entries,
 # the oldest are rotated to the JSONL history log to keep the main file small.
@@ -3971,6 +3982,10 @@ async def _get_telegram_client() -> Optional[httpx.AsyncClient]:
     return _telegram_client
 
 
+_ALERT_WARNED: set = set()
+_ALERT_WARN_ONCE = True
+
+
 async def send_telegram(msg: str, *, silent: bool = False) -> None:
     """Fire-and-forget alert. Name kept for the ~all call sites: since 2026-10-15 it goes
     through the pluggable dispatcher (ALERT_CHANNELS: telegram/discord/email/ntfy/off).
@@ -3984,6 +3999,11 @@ async def send_telegram(msg: str, *, silent: bool = False) -> None:
         for _ch, _st in (res or {}).items():
             if _st == "sent":
                 _log(f"{_ch} sent ok: {_prev}", prefix="tg" if _ch == "telegram" else "alert")
+            elif str(_st).startswith("failed: missing") and _ALERT_WARN_ONCE \
+                    and str(os.environ.get("ALERT_MISSING_WARN_ONCE", "1")).strip().lower() not in ("0", "false", "off", "no"):
+                if _ch not in _ALERT_WARNED:   # missing channel key: warn once per run, not on every alert
+                    _ALERT_WARNED.add(_ch)
+                    _log(f"alert {_ch} {_st} (set it in bots/.env; this warning shows once per run)", prefix="alert")
             else:
                 _log(f"alert {_ch} {_st}", prefix="alert")
         return
@@ -26339,7 +26359,10 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
                 _minliq = _guard._f("SIGNAL_RECHECK_MIN_LIQ_USD", 10000)
                 if _minliq > 0 and _liq < _minliq:
                     _rb = ("recheck_low_liquidity", f"liquidity now ${_liq:,.0f} < ${_minliq:,.0f}")
-                _sig_mcap = _safe_num(sig.get("mcap") or sig.get("expected_mcap") or sig.get("scan_mcap"))
+                # v1.0.1: prefer the market cap the agent saw when it fired (mcap_at_signal);
+                # SIGNAL_RECHECK_USE_SIGNAL_MCAP=0 = old order (mcap / expected_mcap / scan_mcap only)
+                _sig_mcap = _safe_num((sig.get("mcap_at_signal") if _guard._on("SIGNAL_RECHECK_USE_SIGNAL_MCAP", "true") else None)
+                                      or sig.get("mcap") or sig.get("expected_mcap") or sig.get("scan_mcap"))
                 _now_mcap = _safe_num(_fresh.get("marketCap") or _fresh.get("fdv")) or 0
                 _drift = _guard._f("SIGNAL_RECHECK_MAX_DRIFT_PCT", 50)
                 if not _rb and _sig_mcap and _now_mcap and _drift > 0:
@@ -29731,6 +29754,7 @@ async def write_signal_rejected_packet(sig_id: str, mint: str, ticker: str, amou
         "id": f"x_evt_signal_rejected_{sha}",
         "type": "signal_rejected",
         "received_at": _now_iso(),
+        "summary": f"{ticker or _short_mint(mint)}: {amount_sol} SOL buy rejected ({reason}). {str(explanation or '')[:160]}",
         **_lane_fields("signal_rejected"),
         "from_user": {"username": "@meme_sniper", "friendship_tier": "system", "user_id": "meme_sniper_bot"},
         "context": {

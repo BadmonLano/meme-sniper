@@ -8,7 +8,7 @@ Menu: start everything, setup wizard, sign in to X, live dashboard, launch a tok
 meme_sniper.py stays the engine; this file only launches, configures and watches.
 The dashboard reads state files only and never places trades.
 
-Flags (optional): --start  --dashboard  --wizard  --launch  --console  --no-ui  --smoke  --ui-smoke
+Flags (optional): --start  --dashboard  --wizard  --launch  --console  --no-ui  --smoke  --ui-smoke  --help
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cancel_input import CancelInput, choose  # noqa: E402  (q / back / esc at any prompt = back; Ctrl+C = stop)
 
-VERSION = "v14.3"
+VERSION = "v1.0.1"
 TAGLINE = "Snipe, build, launch, all from one repo."
 GREEN, PURPLE, BG = "#39FF14", "#8A2BE2", "#000000"
 
@@ -115,7 +115,15 @@ WIZARD_FIELDS = [
     ("SNIPER_DEFAULT_SL_PCT", "Default stop-loss % armed on each new position unless the agent sets one (0 = off)", False, "25"),
     ("SNIPER_DEFAULT_TP_PCT", "Default take-profit % armed on each new position unless the agent sets one (0 = off)", False, "100"),
     ("LAUNCH_RAIL_LIVE", "Launch tokens live on-chain (LAUNCH_RAIL_LIVE)?", False, "0"),
+    ("LAUNCH_RAIL_ENABLED", "Turn on the launch rail at all (master switch; off = no token launches, not even dry runs)?", False, "false"),
     ("LAUNCH_MAX_DEV_BUY_SOL", "Max dev buy per token launch (SOL)", False, "0.5"),
+    ("DAILY_LOSS_STOP_SOL", "Daily loss stop: realized SOL loss in one day that stops new buys (0 = off)", False, "0.5"),
+    ("DAILY_BUY_CAP", "Daily buy cap: most buys per day (0 = off)", False, "10"),
+    ("MINT_COOLDOWN_HOURS", "Same-token cooldown: hours before it may buy the same token again after a stop-loss", False, "72"),
+    ("LOSS_STREAK_PAUSE", "Loss-streak pause: losses in a row that pause buys for a while (0 = off)", False, "3"),
+    ("MAX_OPEN_POSITIONS", "Max open positions at once (0 = off)", False, "3"),
+    ("TRADING_HOURS", "Trading hours, e.g. 09:00-23:00 (blank = always)", False, ""),
+    ("TRADING_TZ", "Timezone for trading hours (e.g. America/New_York, Europe/London)", False, "America/New_York"),
     ("PINATA_JWT", "Pinata JWT for token image/metadata uploads (needed for live launches; Enter skips)", True, ""),
     ("OWN_LAUNCH_MODE", "Own-launch mode (hold / flip)", False, "hold"),
     ("OWN_LAUNCH_TREASURY_PCT", "Own-launch treasury % (never sold)", False, "50"),
@@ -318,7 +326,13 @@ def write_env(values: dict, path: Path = ENV_FILE, template: Path = ENV_EXAMPLE)
                 done.add(m.group(1))
         out.append(ln)
     lines = out
-    extra = [f"{k}={v}" for k, v in values.items() if k not in done]
+    _lbl = {k: l for k, l, _s, _d in WIZARD_FIELDS + EXTRA_FIELDS}
+    extra = []
+    for k, v in values.items():
+        if k not in done:
+            if k in _lbl:
+                extra.append("# " + _lbl[k])   # comment on its own line (python-dotenv reads inline # as the value)
+            extra.append(f"{k}={v}")
     if extra:
         lines += ["", "# --- set by the sniper.py setup wizard ---"] + extra
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -485,7 +499,7 @@ EXTRA_FIELDS = [   # (key, prompt, secret, default): asked as yes/no or extra ke
     ("SNIPER_LEARNING_MODE", "Turn on LEARNING mode (starts small, adjusts size and SL/TP from its own closed trades)?", False, "0"),
     ("SNIPER_PAPER_MODE", "Run in PAPER mode (simulated, no real transactions)?", False, "0"),
 ]
-YESNO_KEYS = ("LAUNCH_RAIL_LIVE", "SNIPER_LEARN_REST", "SNIPER_LEARNING_MODE", "SNIPER_PAPER_MODE",
+YESNO_KEYS = ("LAUNCH_RAIL_LIVE", "LAUNCH_RAIL_ENABLED", "SNIPER_LEARN_REST", "SNIPER_LEARNING_MODE", "SNIPER_PAPER_MODE",
               "OLLAMA_ENABLED", "OLLAMA_CLOUD_ENABLED")
 AREAS = [
     ("Wallet", ("HOT_WALLET_PRIVATE_KEY", "HOT_WALLET_ADDRESS", "LEDGER_ADDRESS")),
@@ -497,8 +511,13 @@ AREAS = [
     ("X", ("X_BEARER_TOKEN",)),
     ("Trading values", ("SNIPER_BUY_SIZE_SOL", "SNIPER_DEFAULT_SL_PCT", "SNIPER_DEFAULT_TP_PCT",
                         "LAUNCH_MAX_DEV_BUY_SOL", "OWN_LAUNCH_MODE", "OWN_LAUNCH_TREASURY_PCT")),
-    ("Modes", ("LAUNCH_RAIL_LIVE", "SNIPER_PAPER_MODE", "SNIPER_LEARNING_MODE", "SNIPER_LEARN_REST")),
+    ("Safety caps", ("DAILY_LOSS_STOP_SOL", "DAILY_BUY_CAP", "MINT_COOLDOWN_HOURS", "LOSS_STREAK_PAUSE",
+                     "MAX_OPEN_POSITIONS", "TRADING_HOURS", "TRADING_TZ")),
+    ("Modes", ("LAUNCH_RAIL_ENABLED", "LAUNCH_RAIL_LIVE", "SNIPER_PAPER_MODE", "SNIPER_LEARNING_MODE", "SNIPER_LEARN_REST")),
 ]
+# blank is a valid answer here (blank = the built-in default / always), so "fill only what is missing" skips them
+# once they have been seen; SNIPER_WIZARD_SAFETY=0 hides the Safety caps questions (kill switch)
+BLANK_OK = ("TRADING_HOURS",)
 IMPORTANT = ("HOT_WALLET_PRIVATE_KEY", "HOT_WALLET_ADDRESS", "RPC_URL", "PINATA_JWT")   # Telegram no longer required (2026-10-15)
 X_KEYS = ("X_BEARER_TOKEN", "X_INTEL_TOKEN", "BROWSER_USER_DATA_DIR")
 
@@ -616,6 +635,8 @@ def _area_rows(env: dict) -> list:
         elif keys == "OWNER_COMMANDS":
             out += [(area, k, lbl, req, off) for k, lbl, req, off in _owner_cmd_rows(env)]
         else:
+            if area == "Safety caps" and str(os.environ.get("SNIPER_WIZARD_SAFETY", "1")).strip().lower() in ("0", "false", "off", "no"):
+                continue
             out += [(area, k, k, k in IMPORTANT, None) for k in keys]
     return out
 
@@ -761,7 +782,7 @@ def _status_keys(env: dict | None = None) -> list:
 
 def _missing_keys(env: dict) -> list:
     """Editable keys that are unset (main/fallback count as unset until chosen)."""
-    return [k for k in _status_keys(env) if not str(env.get(k) or "").strip()]
+    return [k for k in _status_keys(env) if not str(env.get(k) or "").strip() and k not in BLANK_OK]
 
 
 def _ask_field(key: str, cur: dict) -> str | None:
@@ -791,7 +812,7 @@ def _ask_field(key: str, cur: dict) -> str | None:
     if key in YESNO_KEYS:
         on = _on(cur.get(key) or default)
         yes = Confirm.ask(label, default=on)
-        return ("true" if yes else "false") if key in ("SNIPER_LEARN_REST", "OLLAMA_ENABLED", "OLLAMA_CLOUD_ENABLED") \
+        return ("true" if yes else "false") if key in ("SNIPER_LEARN_REST", "OLLAMA_ENABLED", "OLLAMA_CLOUD_ENABLED", "LAUNCH_RAIL_ENABLED") \
             else ("1" if yes else "0")
     has = bool(str(cur.get(key) or "").strip())
     hint = "[dim](set; Enter keeps, 'clear' blanks)[/]" if has else \
@@ -883,6 +904,10 @@ def _wizard_interactive(out_path: Path) -> Path | None:
         alerts_step(after, ask_first=True)
     if mode == "3" or not (ROOT / "rules" / "rules.md").exists():
         owner_rules_step(None, interactive=True, root=ROOT)
+    if str(os.environ.get("SNIPER_WIZARD_REMINDER", "1")).strip().lower() not in ("0", "false", "off", "no"):
+        console.print(Panel("Next: set up your inbox checks. Ask your SI agent to schedule the prompts in automations/ "
+                            "(sniper_lane every 10 min, misc_lane 15, warden_lane 20, morning_brief daily, nightly "
+                            "self-eval). README Quick start step 8.", border_style=PURPLE, title="Inbox checks"))
     return out_path
 
 
@@ -1924,7 +1949,8 @@ def _smoke_labels() -> bool:
     """Every filter knob, template key, wizard key and console setting has a label, section and a known unit."""
     L = _labels()
     want = set()
-    fj = _read_json(BOTS / "tuner" / "meme_sniper_filter.json", {}) or {}
+    fj = _read_json(BOTS / "tuner" / "meme_sniper_filter.json", {}) or \
+        _read_json(BOTS / "tuner" / "meme_sniper_filter.default.json", {}) or {}
     want |= set((fj.get("knobs") or {}).keys())
     for ln in (BOTS / ".env.example").read_text(encoding="utf-8").splitlines():
         m = re.match(r"^([A-Z][A-Z0-9_]*)=", ln)
@@ -2178,7 +2204,46 @@ def smoke() -> int:
 
 
 KNOWN_FLAGS = {"--start", "--dashboard", "--wizard", "--launch", "--console", "--no-ui", "--smoke", "--ui-smoke",
-               "--telegram-test"}
+               "--telegram-test", "--help", "-h"}
+
+HELP_TEXT = f"""Meme Sniper {VERSION}
+
+usage: python bots/sniper.py [option]     (no option = menu)
+
+  --start          start Sniper and its helpers, then the console
+  --dashboard      live dashboard (read-only)
+  --wizard         setup wizard (writes bots/.env)
+  --launch         guided token launch (dry run unless LAUNCH_RAIL_LIVE=1)
+  --console        console only (dashboard, logs, settings, skills, alerts)
+  --no-ui          with --start: no console, just the bots
+  --smoke          quick self-check, changes nothing
+  --ui-smoke       render every console view against a temp copy (your files are never touched)
+  --telegram-test  send a test alert to your alert channels
+  --help, -h       this text
+"""
+
+
+def _ui_smoke_temp() -> int:
+    """--ui-smoke without WORKSPACE_DIR: run it against a throwaway copy of this folder, then delete the copy.
+    The copy gets its own .env from .env.example, so your bots/.env and tracked files never change."""
+    import shutil, tempfile
+    if (os.environ.get("WORKSPACE_DIR") or "").strip():
+        sys.path.insert(0, str(BOTS)); import sniper_ui
+        return sniper_ui._ui_smoke()
+    src = BOTS.parent
+    tmp = Path(tempfile.mkdtemp(prefix="sniper_ui_smoke_"))
+    ws = tmp / "ws"
+    skip = shutil.ignore_patterns(".git", ".venv", "venv", "__pycache__", ".env", "bot_logs", "*.pyc")
+    shutil.copytree(src, ws, ignore=skip)
+    (ws / "bot_logs").mkdir(exist_ok=True)
+    if (ws / "bots" / ".env.example").exists():
+        shutil.copy(ws / "bots" / ".env.example", ws / "bots" / ".env")
+    env = {**os.environ, "WORKSPACE_DIR": str(ws), "PYTHONIOENCODING": os.environ.get("PYTHONIOENCODING", "utf-8")}
+    import subprocess
+    try:
+        return subprocess.call([sys.executable, str(ws / "bots" / "sniper_ui.py"), "--ui-smoke"], env=env, cwd=str(ws))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main() -> int:
@@ -2187,9 +2252,10 @@ def main() -> int:
     a = set(sys.argv[1:])
     if "--smoke" in a:
         return smoke()
-    if "--ui-smoke" in a:   # same check as `python bots/sniper_ui.py --ui-smoke` (needs WORKSPACE_DIR)
-        sys.path.insert(0, str(BOTS)); import sniper_ui
-        return sniper_ui._ui_smoke()
+    if "--help" in a or "-h" in a:
+        print(HELP_TEXT); return 0
+    if "--ui-smoke" in a:   # runs against a temp copy unless WORKSPACE_DIR is set
+        return _ui_smoke_temp()
     unknown = sorted(x for x in a if x.startswith("--") and x not in KNOWN_FLAGS)
     if unknown:
         console.print(f"[yellow]unknown option(s): {' '.join(unknown)}[/] (known: {' '.join(sorted(KNOWN_FLAGS))})")

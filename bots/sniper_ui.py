@@ -39,6 +39,17 @@ _WORKSPACE = _drop_root()
 _BOT_LOGS = _WORKSPACE / "bot_logs"
 _JSON_RELAY = _WORKSPACE / "json_relay"
 MEME_SNIPER_FILTER_FILE = _BASE / "tuner" / "meme_sniper_filter.json"
+
+# v1.0.1: the tracked file is meme_sniper_filter.default.json; the live copy (meme_sniper_filter.json) is
+# git-ignored, so runs never dirty a clone. First run copies the default. SNIPER_FILTER_SEED_DEFAULT=0 = no copy.
+MEME_SNIPER_FILTER_DEFAULT = MEME_SNIPER_FILTER_FILE.with_name("meme_sniper_filter.default.json")
+try:
+    if (not MEME_SNIPER_FILTER_FILE.exists() and MEME_SNIPER_FILTER_DEFAULT.exists()
+            and str(os.environ.get("SNIPER_FILTER_SEED_DEFAULT", "1")).strip().lower() not in ("0", "false", "off", "no")):
+        import shutil as _fshutil
+        _fshutil.copyfile(MEME_SNIPER_FILTER_DEFAULT, MEME_SNIPER_FILTER_FILE)
+except Exception:
+    pass
 _UI_STATE: dict = {"active": False}
 _ACTIVE_OVERRIDES: dict = {}
 _DROP_HOOKS: dict = {}          # sniper.py sets "stop" (stop all children)
@@ -1567,7 +1578,7 @@ def _ui_banner():
     t = Text(justify="center")
     for i, ln in enumerate(_UI_WORDMARK):
         t.append(ln + "\n", style=f"bold {_UI_GREEN if i < 2 else _UI_PURPLE} on {_UI_BG}")
-    t.append("v14.3  console; engine and sub-bots run under the supervisor\n", style=f"{_UI_PURPLE} on {_UI_BG}")
+    t.append("v1.0.1  console; engine and sub-bots run under the supervisor\n", style=f"{_UI_PURPLE} on {_UI_BG}")
     t.append(_UI_TAGLINE, style=f"italic {_UI_GREEN} on {_UI_BG}")
     if _ui_paper_on():
         t.append("\n PAPER MODE - simulated trades, no real transactions (bot_logs/paper/) ",
@@ -2947,7 +2958,7 @@ def _ui_tunables(con) -> None:
 
 
 # -- skills ---------------------------------------------------------------------
-_UI_SKILL_DIRS = ("meme-hunter", "ca-intel", "forensics", "sub-skills")
+_UI_SKILL_DIRS = ("meme-hunter", "ca-intel", "forensics", "sub-skills", "gork-lore", "_templates")   # v1.0.1: lore + templates shown too
 
 
 def _ui_skill_files() -> list:
@@ -3426,6 +3437,9 @@ def _ui_smoke() -> int:
                      filter=r / "bots" / "tuner" / "meme_sniper_filter.json", env=r / "bots" / ".env")
     if not _UI_PATHS["env"].exists() and (r / "bots" / ".env.example").exists():
         shutil.copy(r / "bots" / ".env.example", _UI_PATHS["env"])   # fresh clone: temp .env inside WORKSPACE_DIR only
+    _fd = r / "bots" / "tuner" / "meme_sniper_filter.default.json"
+    if not _UI_PATHS["filter"].exists() and _fd.exists():
+        shutil.copy(_fd, _UI_PATHS["filter"])   # temp filter copy inside WORKSPACE_DIR only
     res = {}
     # never hang: a stuck render or prompt ends the smoke with a FAIL instead of waiting forever
     _wd = _ui_threading.Timer(float(_envv("UI_SMOKE_TIMEOUT_S") or 300),

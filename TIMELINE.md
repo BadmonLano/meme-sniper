@@ -1,6 +1,13 @@
 # Timeline
 
-Version history, newest first.
+Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
+
+## v1.0.1 (2026-10-23): setup questions, docs, fixes
+- Setup wizard asks the safety caps (daily loss stop, daily buy cap, same-token cooldown, loss-streak pause, max open positions, trading hours + timezone) and the launch rail on/off switch.
+- Filter defaults ship as `meme_sniper_filter.default.json`; the live copy is git-ignored, so `git pull` stays clean.
+- Buy signals can carry `mcap_at_signal` for the pre-buy drift check; rejected-signal packets now have a summary.
+- Missing alert key warned once per run; Ctrl+C exits quietly in log_janitor, x_intel and learnings_writer.
+- `--help`; `--ui-smoke` runs on a temp copy by itself. README: clone URL, Mac/Linux venv, menus, wallet risk, RPC note, Updating.
 
 ## v14.3 (2026-10-14): public release
 - Self-contained repo: no references to anything outside it.

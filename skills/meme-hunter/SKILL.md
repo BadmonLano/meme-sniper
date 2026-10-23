@@ -20,6 +20,18 @@ prime_directive_derivative: >
 
 Before every trade decision (buy, size, hold, exit, protection change), read the owner's rules: `rules/rules.md`, also attached to each decision packet as `owner_rules`. Owner rules override every default in this skill: a max size, no-trade hours, banned tokens or categories, loss limits or exit rules from the owner win over the numbers here. The bot's hard safety gates still apply on top. If `owner_rules.present` is false, the skill defaults apply. If a rule and a packet conflict, follow the rule and say so in your reasoning.
 
+
+## First-run checklist: set up your inbox checks
+Do this once, with the owner, before the first live trade. Nothing gets decided until these run.
+1. Read `automations/README.md`. Replace `{AGENT_NAME}` / `{USER}` in each prompt.
+2. Create one recurring task per prompt in your own scheduler (Grok Bot: a routine; Muse and other SI agents: scheduled task / cron / heartbeat). The task's prompt is the file's full text.
+   - `automations/sniper_lane.automation.md`, every 10 min: `inbox/meme_sniper - *` + `trench_news - *` (token cards, second-wind pings, digests, boot summaries, signal answers incl. `signal_rejected`), then SL/TP on open bags.
+   - `automations/warden_lane.automation.md`, every 20 min: `inbox/security_warden - *`.
+   - `automations/misc_lane.automation.md`, every 15 min: every other `inbox/` file.
+   - `automations/morning_brief.automation.md`, once each morning.
+   - `learnings/nightly_self_eval.automation.md`, once a night.
+3. Agree the cadence with the owner, offset start minutes, run each once by hand and check `bot_logs/inbox_cron_audit.log`.
+
 ## First run: ask your owner
 
 Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default): paper or live (default live), launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
@@ -1983,7 +1995,7 @@ Use `convert_mode` for clean transitions. Use `update_params` when you want non-
 
 Every hold is scored against one fixed rubric, the Gork Standard. It lives in code as `bot_logs/gork_standard.json` (written on first start), so the same token scored twice gets the same answer and scores stay comparable over months. $GORK is the 10/10 ceiling the rubric was written from.
 
-**Default benchmark: $GORK.** Unset `SNIPER_HOLD_BENCHMARK` = $GORK, `bot_logs/gork_standard.json` and the `skills/gork-lore` skill. Load gork-lore for the lore behind the ceiling.
+**Default benchmark: $GORK (an example; replace it with your own).** Unset `SNIPER_HOLD_BENCHMARK` = $GORK, `bot_logs/gork_standard.json` and the `skills/gork-lore` skill. Load gork-lore for the lore behind the ceiling.
 
 ### Set a custom hold benchmark
 
@@ -3253,7 +3265,7 @@ A bag in the wallet the bot did not buy (bought by hand or elsewhere, no bot buy
 <!-- sniper_github section -->
 ## Repos: attach, contribute, upload (sniper_github)
 
-Plain version: Sniper can attach a launcher's GitHub repo, collect improvement ideas, and prep new repos. Jordan decides what gets in. Lano OKs every push. Nothing merges or pushes by itself.
+Plain version: Sniper can attach a launcher's GitHub repo, collect improvement ideas, and prep new repos. Two roles: the **maintainer** (the agent set as `SNIPER_REVIEWER`) reviews what gets in; the **owner** (the human) OKs every push. Nothing merges or pushes by itself.
 
 Code: `bots/sniper_github.py`, imported by `meme_sniper.py` (not its own bot). CLI: `python bots/sniper_github.py <cmd>`.
 
@@ -3266,27 +3278,33 @@ Code: `bots/sniper_github.py`, imported by `meme_sniper.py` (not its own bot). C
 - Log lines: `launch_repo_resolved` (source = github_user | pasted_link | none).
 - Check by hand: `python bots/sniper_github.py repos <user>` or `resolve --user <u> --pick 1 --url <link>`.
 
-### 2. Contributions (no middleman, but Jordan reviews)
-- After a launch is sent with a repo, Sniper drops an invite in the launching agent's inbox (Jordan: `workspace/inbox`; other agents: `json_relay/agent_inbox/<agent>/`).
+### 2. Contributions (no middleman, but the maintainer's agent reviews)
+- After a launch is sent with a repo, Sniper drops an invite in the launching agent's inbox (the maintainer: `inbox/`; other agents: `json_relay/agent_inbox/<agent>/`).
 - Agents submit either a pull request on the repo, or a file in `json_relay/repo_suggestions/`:
   `{"repo": "<url>", "github_user": "<you>", "wallet": "<wallet>", "title": "...", "body": "what and why", "pr_url": "<optional>", "patch": "<optional diff>"}`
-  Open PRs on our repo can be pulled in read-only with `scan-prs <owner/repo>`.
-- Spam limit: `suggest_daily_cap` (default 3) per wallet OR GitHub account per day. Extra ones are rejected with a note (`bots/bot_logs/repo_review/rejected/`) and Jordan isn't pinged.
-- Each accepted suggestion goes to `bots/bot_logs/repo_review/queue/<id>.json` and Jordan gets `inbox/meme_sniper - repo_suggestion_<id>_<ts>.md`.
-- Jordan (or goat, when in the chair) decides: write `json_relay/repo_decisions/<id>.json` = `{"decision": "approve"|"reject", "by": "jordan", "reason": "...", "bump": "minor"|"patch"|"major"}`, or run `review approve|reject <id>`.
-- On approve: contributor credit goes to `credits.jsonl` (for release notes), the version bumps (v1.0 -> v1.1, tracked in `versions.json`), a changelog entry is added to `releases/<repo>/CHANGELOG_pending.md`, and `release_plan_<tag>.json` is written with status `awaiting_lano_ok`. Jordan gets a note with a drafted X shoutout. It isn't posted, and shoutouts never mention the token.
-- The tag, push and GitHub release run only via `publish-release <plan.json> --lano-ok` with env `SNIPER_GH_PUSH_OK=1`. Without both it's a dry run that just prints the commands.
-- No auto-merge. No auto-pull: users fork and stack their own work on top, and they pull our tagged releases only when they choose. To get notified, users click Watch -> Custom -> Releases on our repo (GitHub emails/app pushes them on every tag). We get notified when GitHub Watch is set to "All activity" on our repo (PRs, issues), and Sniper's repo_watch already writes repo events to Jordan's inbox.
+  Open PRs on the repo can be pulled in read-only with `scan-prs <owner/repo>`.
+- Spam limit: `suggest_daily_cap` (default 3, env `SNIPER_SUGGEST_DAILY_CAP`) per wallet OR GitHub account per day. Extra ones are rejected with a note (`bot_logs/repo_review/rejected/`) and the maintainer isn't pinged.
+- Each accepted suggestion goes to `bot_logs/repo_review/queue/<id>.json` and the maintainer gets `inbox/meme_sniper - repo_suggestion_<id>_<ts>.md`.
+- The maintainer's agent decides: write `json_relay/repo_decisions/<id>.json` = `{"decision": "approve"|"reject", "by": "<maintainer>", "reason": "...", "bump": "minor"|"patch"|"major"}`, or run `review approve|reject <id>`.
+- On approve: contributor credit goes to `credits.jsonl` (for release notes), the version bumps (v1.0 -> v1.1, tracked in `versions.json`), a changelog entry is added to `releases/<repo>/CHANGELOG_pending.md`, and `release_plan_<tag>.json` is written with status `awaiting_owner_ok`. The maintainer gets a note with a drafted X shoutout. It isn't posted, and shoutouts never mention the token.
+- The tag, push and GitHub release run only via `publish-release <plan.json> --owner-ok` with env `SNIPER_GH_PUSH_OK=1`, after the owner says OK. Without both it's a dry run that just prints the commands.
+- No auto-merge. No auto-pull: users fork and stack their own work on top, and they pull tagged releases only when they choose. To get notified, users click Watch -> Custom -> Releases on the repo. The maintainer gets notified when GitHub Watch is set to "All activity" (PRs, issues), and Sniper's repo_watch writes repo events to the maintainer's `inbox/`.
 
 ### 3. Repo uploader
-- Drop a folder in `workspace/repo_drops/<name>/` (Sniper checks it each loop; `SNIPER_REPO_DROPS_WATCH=0` turns that off), or run `upload <folder> [--name x]`.
-- The source folder is never changed. A copy goes to `bots/bot_logs/repo_uploads/<name>/` with: MIT `LICENSE` (Copyright (c) 2026 Bentayga Empire LLC), a blank `.env.example` (key names only), a `.gitignore` with `.env`, and a README stub with topics if none exists.
-- Blocked (status `blocked`, nothing copied) if the scan finds secrets (keys, tokens, private keys, keypair arrays, `.env` files) or private paths from the `denylist_paths` config (default includes flow_cycle, jordan_autoagent, openclaw, crucix, wallets, keypairs, bot_logs, memory, backups). Findings list file and line, never the value.
-- Ready = `ready_awaiting_lano_ok`; Jordan gets a note. Create/push happens only via `publish-upload <name> --lano-ok` with `SNIPER_GH_PUSH_OK=1`.
-- Config: `bots/bot_logs/sniper_github_config.json` (`suggest_daily_cap`, `denylist_paths`, `default_topics`, `our_owner`, `license_holder`).
+- Drop a folder in `repo_drops/<name>/` at the repo root (Sniper checks it each loop; `SNIPER_REPO_DROPS_WATCH=0` turns that off), or run `upload <folder> [--name x]`.
+- The source folder is never changed. A copy goes to `bot_logs/repo_uploads/<name>/` with: MIT `LICENSE`, a blank `.env.example` (key names only), a `.gitignore` with `.env`, and a README stub with topics if none exists.
+- Blocked (status `blocked`, nothing copied) if the scan finds secrets (keys, tokens, private keys, keypair arrays, `.env` files) or private paths from the `denylist_paths` config (wallets, keypairs, bot_logs, memory, backups and anything you add). Findings list file and line, never the value.
+- Ready = `ready_awaiting_owner_ok`; the maintainer gets a note. Create/push happens only via `publish-upload <name> --owner-ok` with `SNIPER_GH_PUSH_OK=1`, after the owner says OK.
+- Config: `bot_logs/sniper_github_config.json` (`suggest_daily_cap`, `denylist_paths`, `default_topics`, `our_owner`, `license_holder`).
 
 ### Visibility checklist per repo
-Topics, a README with a demo GIF and quick start, links between our repos and the JOS/drop sites, tagged releases with changelogs that credit contributors, "good first issue" labels, an X post per release (no token mention), and submissions to the Solana / SI-agent / trading-bot awesome-lists.
+Topics, a README with a demo GIF and quick start, links between your repos, tagged releases with changelogs that credit contributors, "good first issue" labels, an X post per release (no token mention), and submissions to the Solana / SI-agent / trading-bot awesome-lists.
+
+## New settings (v1.0.1)
+- The setup wizard now asks the **Safety caps**: `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` (blank = always) + `TRADING_TZ`, and `LAUNCH_RAIL_ENABLED` (default off). Don't re-ask what the owner already answered; read `bots/.env` first.
+- **Buy signals:** add `"mcap_at_signal": <USD market cap you saw>` so the pre-buy drift recheck (`SIGNAL_RECHECK_MAX_DRIFT_PCT`, 50%) compares against what you actually saw. A refusal comes back as `signal_rejected` in `inbox/` with a one-line `summary`. `SIGNAL_RECHECK_USE_SIGNAL_MCAP=0` ignores the field.
+- **Filter file:** the shipped defaults are `bots/tuner/meme_sniper_filter.default.json`; the live, tunable copy is `bots/tuner/meme_sniper_filter.json` (git-ignored, made on first run). Edit the live copy, never the default.
+- Kill switches: `SNIPER_WIZARD_SAFETY=0`, `ALERT_MISSING_WARN_ONCE=0`, `SNIPER_FILTER_SEED_DEFAULT=0`.
 
 <!-- github_signin section -->
 ## GitHub sign-in (optional, one time)
@@ -3302,5 +3320,5 @@ Sign in once and Sniper remembers you. Your repos show up automatically at launc
 **Check:** `python bots/sniper_github.py status` shows who you're signed in as. `my-repos [--private]` lists your repos.
 **Sign out:** `python bots/sniper_github.py logout` removes it from this PC. To cut access completely, also revoke Sniper at https://github.com/settings/applications.
 
-Where it's saved: Windows Credential Manager (or the OS keyring); if that's missing, a file in `bots/bot_logs` only your user can read. The token is never printed or logged. Default access is read-only public data.
+Where it's saved: Windows Credential Manager (or the OS keyring); if that's missing, a file in `bot_logs/` only your user can read. The token is never printed or logged. Default access is read-only public data.
 Not set up or signed out? Nothing breaks: type a GitHub username, paste a repo link, or launch with no repo. `SNIPER_GH_NO_LOGIN=1` ignores a saved sign-in.

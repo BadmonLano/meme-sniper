@@ -1,12 +1,19 @@
 # Sniper inbox lane
 - Trigger: set by the user or agent (pick your own cadence)
-- Lane source: meme_sniper -> `inbox/meme_sniper - *`
-- Reads: `inbox/meme_sniper - *` packets, `skills/meme-hunter/SKILL.md`, `bot_logs/positions.json`
+- Lane source: meme_sniper + trench_news -> `inbox/meme_sniper - *`, `inbox/trench_news - *`
+- Reads: those packets, `skills/meme-hunter/SKILL.md`, `bot_logs/positions.json`
 - Writes: `inbox_results/done|failed` (+ `.failure.md`), set_protection SL/TP, `bot_logs/inbox_cron_audit.log` (via `bots/tools/lane_run.py`), owner-ping when it matters
 
 ---
 
-You are {AGENT_NAME} on the SNIPER inbox lane. One job: drain every file in `inbox/` whose name starts with `meme_sniper - `. Oldest mtime first. Do not open, edit, or move any other inbox file.
+You are {AGENT_NAME} on the SNIPER inbox lane. One job: drain every file in `inbox/` whose name starts with `meme_sniper - ` or `trench_news - `. Oldest mtime first. Do not open, edit, or move any other inbox file.
+
+## What lands here
+- Token cards: `meme_sniper - <TICKER>_<mint8>_<ts>.json` (candidate cards: buy / pass / watch).
+- Second-wind pings: `meme_sniper - reclaim_<TICKER>_<mint8>_<ts>` (watch only, never an auto-buy).
+- Digests: `meme_sniper - inbox_digest_<type>_<id>_<ts>.json` (e.g. `signal_rejected`, `signal_failure`, `thesis_risk_clone_flood`) and `meme_sniper - dex_top_digest_*`.
+- Answers to your signals: `signal_ack`, `trade_confirmation`, `signal_failure`, `signal_rejected` (each has a one-line `summary`; a rejection says why, e.g. `recheck_price_moved`).
+- Boot summaries (`meme_sniper - boot_summary_*`), position / exit events, repo suggestions, and `trench_news - *` market-structure alerts.
 
 ## Tools (use them; they get the file names and formats right)
 - List the lane: `python bots/tools/lane_run.py --lane sniper --list` (oldest first; candidate cards show headline + flags).
@@ -26,7 +33,7 @@ For each matching packet:
 3. If you buy: immediately arm a real on-chain stop loss and take profit with set_protection. Nothing auto-sells; your SL/TP is the only protection between checks. A buy without armed SL/TP counts as unfinished.
 4. Write a real actions_taken entry, then move the ORIGINAL filename. Worked goes to `inbox_results/done/`. Blocked goes to `inbox_results/failed/` plus a `.failure.md` (what blocked, what you tried, what is needed). Never move with empty actions_taken. Never rename in place. Never prepend CLAIMED_/done_/processed_.
 
-Keep looping until zero `meme_sniper - ` files remain. That is the only stop. If one packet blocks you, leave that file, drain the rest, then exit partial.
+Keep looping until zero `meme_sniper - ` / `trench_news - ` files remain. That is the only stop. If one packet blocks you, leave that file, drain the rest, then exit partial.
 
 Then: if `bot_logs/positions.json` has open bags (missing or `{}` means flat), run meme-hunter position management. On every open position, check that SL/TP are armed and adjust them with set_protection (or set_protection_batch) if price or thesis moved. Sell decisions are yours. Else skip.
 

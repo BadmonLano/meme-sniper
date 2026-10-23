@@ -2374,4 +2374,7 @@ async def main():
     )
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:   # Ctrl+C: stop quietly
+        sys.exit(0)

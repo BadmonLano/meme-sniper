@@ -21,11 +21,6 @@ learnings/*
 !learnings/LEARNINGS.template.md
 !learnings/nightly_self_eval.automation.md
 !rules/rules.example.md
-!bot_logs/kol_list.json
-!bot_logs/gork_standard.json
-!bot_logs/archetype_roster.json
-!bot_logs/capital_floor.json
-!bot_logs/launch_rail_config.json
 bots/bot_logs/
 
 # browser / scraper profiles
@@ -65,6 +60,9 @@ backups/
 
 # sub-bot state written next to the code
 bots/tuner/*.bak
+# live filter copy (seeded from meme_sniper_filter.default.json on first run)
+bots/tuner/meme_sniper_filter.json
+bots/tuner/tune history/
 # agent-generated lore skills for a custom hold benchmark stay local; gork-lore and the template ship
 skills/*-lore/
 !skills/gork-lore/
