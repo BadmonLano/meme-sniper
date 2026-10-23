@@ -441,6 +441,21 @@ def _reviewer_note(item: dict) -> Path:
     return p
 
 
+
+def _agent_memo(kind, ok, summary, **kw):
+    """Loop closure memo in inbox/ (agent_memo.py; AGENT_MEMOS=0 = off). Never raises."""
+    try:
+        import sys as _s, os as _o
+        _d = _o.path.dirname(_o.path.abspath(__file__))
+        for _c in (_d, _o.path.join(_d, "sub-bots")):
+            if _c not in _s.path:
+                _s.path.insert(0, _c)
+        import agent_memo as _am
+        return _am.write(kind, ok, summary, **kw)
+    except Exception:
+        return None
+
+
 def intake_suggestions() -> list[dict]:
     """Move suggestion files from json_relay/repo_suggestions into the review queue."""
     out = []
@@ -451,8 +466,15 @@ def intake_suggestions() -> list[dict]:
         dest = SUGGEST_IN / "processed"
         dest.mkdir(exist_ok=True)
         if not isinstance(s, dict):
+            _agent_memo("repo_suggestion", False, f"repo suggestion {f.name} unreadable, moved to processed/",
+                        request_id=f.stem, source="sniper_github", reason="not a JSON object")
             shutil.move(str(f), str(dest / f.name)); continue
-        out.append(enqueue(s, kind="pr" if s.get("pr_url") else "suggestion_file", source_file=f.name))
+        _it = enqueue(s, kind="pr" if s.get("pr_url") else "suggestion_file", source_file=f.name)
+        out.append(_it)
+        _agent_memo("repo_suggestion", _it.get("status") == "queued",
+                    f"repo suggestion '{_it.get('title') or f.stem}': {_it.get('status')} as {_it.get('id')}",
+                    request_id=s.get("id") or f.stem, source="sniper_github", status=str(_it.get("status")),
+                    reason=_it.get("note") or "", detail={"queue_id": _it.get("id")})
         shutil.move(str(f), str(dest / f.name))
     return out
 
@@ -559,6 +581,10 @@ def process_decisions() -> list[dict]:
         r = decide(f.stem, str(d.get("decision", "")).lower(), d.get("by", "reviewer"), d.get("reason", ""),
                    d.get("bump", "minor"))
         out.append({"id": f.stem, **r})
+        _dok = not (r.get("error") or str(r.get("status") or "").startswith(("error", "unknown", "not_found", "invalid")))
+        _agent_memo("repo_decision", _dok, f"repo decision {f.stem}: {d.get('decision')} -> {r.get('status') or r.get('error')}",
+                    request_id=f.stem, source="sniper_github", status=str(r.get("status")),
+                    reason=str(r.get("error") or r.get("why") or ""))
         (DECISIONS_IN / "processed").mkdir(exist_ok=True)
         shutil.move(str(f), str(DECISIONS_IN / "processed" / f.name))
     return out
@@ -713,10 +739,14 @@ WRITE_HINT = ("Your GitHub sign-in is read-only, so it can't create or push repo
 
 def publish(commands: list[str], owner_ok: bool, cwd: Path | None = None) -> dict:
     if not owner_ok or os.getenv("SNIPER_GH_PUSH_OK") != "1":
+        _agent_memo("publish", True, f"publish dry run: {len(commands)} command(s) not run (needs --owner-ok AND SNIPER_GH_PUSH_OK=1)",
+                    source="sniper_github", status="dry_run")
         return {"status": "dry_run", "would_run": commands,
                 "gate": "needs --owner-ok AND env SNIPER_GH_PUSH_OK=1"}
     _sc = token_scopes()
     if _sc is not None and not ({"public_repo", "repo"} & set(_sc)):
+        _agent_memo("publish", False, "publish blocked: GitHub token is read-only", source="sniper_github",
+                    status="blocked", reason="token_lacks_write; run login --public")
         return {"status": "blocked", "why": "token_lacks_write", "hint": WRITE_HINT}
     import subprocess
     ran = []
@@ -727,6 +757,9 @@ def publish(commands: list[str], owner_ok: bool, cwd: Path | None = None) -> dic
         ran.append({"cmd": c, "rc": r.returncode})
         if r.returncode:
             break
+    _bad = [x for x in ran if x["rc"]]
+    _agent_memo("publish", not _bad, f"publish ran {len(ran)} command(s)" + (f", failed at: {_bad[0]['cmd'][:80]}" if _bad else ", all ok"),
+                source="sniper_github", status="ran", reason=(f"rc={_bad[0]['rc']}" if _bad else ""))
     return {"status": "ran", "ran": ran}
 
 

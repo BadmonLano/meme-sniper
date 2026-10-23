@@ -21,6 +21,7 @@ Route by the botname before ` - ` in the filename:
 - `owner - ` (owner review cards and notes from the console's bag actions) -> `skills/meme-hunter/SKILL.md` "Owner review cards". Reply with an owner card in `owner_inbox/`; any trade or SL/TP change is for the sniper lane.
 - `repo_watch - ` (GitHub events on your repos) -> meme-hunter "Repos: attach, contribute, upload". Note it; ping the owner only for something they must act on.
 - `code-monitor - ` (your own patch notes) -> read, confirm the patch landed, done.
+- `confirm_*` / `failed_*` action memos from `launch_rail - `, `sniper_github - `, `code_tuner - `, `owner_commands - ` (`type: action_result`): your request's result, with `request_id` and `reason` on failure. Confirm = done; failed = fix and resend, or tell the owner.
 - `ca_intel` / ca_research responses -> `skills/ca-intel/SKILL.md`; informational unless a sniper card asks for a decision (that belongs to the sniper lane).
 - Anything else (unknown botname, malformed, unreadable) -> move to `inbox_results/failed/` with a `.failure.md` (filename, why it is unknown, what would route it).
 

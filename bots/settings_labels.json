@@ -1559,6 +1559,30 @@
       "section": "Modes",
       "unit": "bool",
       "src": "env"
+    },
+    "AGENT_MEMOS": {
+      "label": "Confirm/fail memo for every agent action",
+      "section": "Alerts",
+      "unit": "bool",
+      "src": "env"
+    },
+    "AGENT_MEMO_SUCCESS": {
+      "label": "Also memo successes (not just failures)",
+      "section": "Alerts",
+      "unit": "bool",
+      "src": "env"
+    },
+    "RELAY_ACK_SUCCESS_TO_INBOX": {
+      "label": "Relay success acks go to inbox/",
+      "section": "Alerts",
+      "unit": "bool",
+      "src": "env"
+    },
+    "PROTECTION_BATCH_EMPTY_REJECT": {
+      "label": "Reject empty SL/TP batch",
+      "section": "Exits & trailing",
+      "unit": "bool",
+      "src": "env"
     }
   }
 }

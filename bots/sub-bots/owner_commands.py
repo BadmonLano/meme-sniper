@@ -473,6 +473,21 @@ def _read_cmd_file(p: str) -> str:
     return raw.strip().splitlines()[0] if raw.strip() else ""
 
 
+
+def _agent_memo(kind, ok, summary, **kw):
+    """Loop closure memo in inbox/ (agent_memo.py; AGENT_MEMOS=0 = off). Never raises."""
+    try:
+        import sys as _s, os as _o
+        _d = _o.path.dirname(_o.path.abspath(__file__))
+        for _c in (_d, _o.path.join(_d, "sub-bots")):
+            if _c not in _s.path:
+                _s.path.insert(0, _c)
+        import agent_memo as _am
+        return _am.write(kind, ok, summary, **kw)
+    except Exception:
+        return None
+
+
 async def file_once() -> int:
     """Answer every command file waiting in owner_commands/. Returns how many were handled."""
     P = _paths()
@@ -490,6 +505,9 @@ async def file_once() -> int:
         except Exception as e:
             _log(f"file: {os.path.basename(p)} failed {type(e).__name__}")
             ok = False
+        _agent_memo("owner_command", ok, f"owner command {os.path.basename(p)}: " + ("answered" if ok else "not answered"),
+                    request_id=os.path.splitext(os.path.basename(p))[0], source="owner_commands",
+                    reason="" if ok else "unknown command, empty reply or error (see owner_commands log)")
         dest = os.path.join(P["results"], "owner_commands", "done" if ok else "failed")
         os.makedirs(dest, exist_ok=True)
         shutil.move(p, os.path.join(dest, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.path.basename(p)}"))

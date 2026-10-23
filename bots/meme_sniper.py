@@ -3681,7 +3681,14 @@ async def filter_file_watcher_loop() -> None:
                 mtime = MEME_SNIPER_FILTER_FILE.stat().st_mtime
                 if mtime > _FILTER_FILE_LAST_MTIME["mtime"]:
                     _FILTER_FILE_LAST_MTIME["mtime"] = mtime
-                    n = reload_active_overrides_from_filter_file()
+                    try:
+                        n = reload_active_overrides_from_filter_file()
+                        _agent_memo("filter_edit", True, f"filter file change applied: {n} override(s) reloaded",
+                                    request_id=f"mtime_{int(mtime)}")
+                    except Exception as _fe:
+                        _agent_memo("filter_edit", False, "filter file change NOT applied",
+                                    request_id=f"mtime_{int(mtime)}", reason=f"{type(_fe).__name__}: {str(_fe)[:200]}")
+                        raise
                     _log(
                         f"filter_file_watcher: detected mtime change, reloaded "
                         f"{n} override(s) into runtime state",
@@ -6672,6 +6679,7 @@ def _apply_wallet_commands(cmds: dict) -> None:
             _save_json_atomic(WALLET_MATCHED_FILE, matched)
     except Exception as e:
         _log(f"_apply_wallet_commands err: {e}", prefix="wallet")
+        return False
 
 
 WALLET_BOT_FILTER        = _envv("WALLET_BOT_FILTER", "true").lower() in ("true", "1", "yes")
@@ -18027,6 +18035,8 @@ async def _process_meeting_file_sniper() -> None:
             _log(f"meeting: corrupted file moved to {broken_path}", prefix="meeting")
         except Exception:
             pass
+        _agent_memo("sniper_meeting", False, "sniper_meeting.json unreadable, moved aside (.broken)",
+                    reason=f"bad JSON: {type(e).__name__}")
         return
 
     if not isinstance(note, dict) or not note.get("message"):
@@ -24020,6 +24030,16 @@ async def scanner_loop() -> None:
 #                       SIGNAL EXECUTOR LOOP (5s polling)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
+def _agent_memo(kind, ok, summary, **kw):
+    """Loop closure: confirmation / failure memo in inbox/ (sub-bots/agent_memo.py; AGENT_MEMOS=0 = off)."""
+    try:
+        import agent_memo as _am
+        return _am.write(kind, ok, summary, **kw)
+    except Exception:
+        return None
+
+
 def _signal_ack(sig: dict, sig_id, action, status: str, ok: bool,
                 summary: str = "", extra: dict = None) -> None:
     """PER-SIGNAL speakback on the agent_ack_v1 bus (2026-08-08, wire-ack closeout).
@@ -24038,6 +24058,10 @@ def _signal_ack(sig: dict, sig_id, action, status: str, ok: bool,
     take down the executor. The history JSONL remains the local audit trail; this
     is the bus the agent's wire ledger checks off against.
     """
+    _agent_memo("signal", ok, f"{action or 'signal'} {sig_id or '(no id)'}: {summary or status}",
+                request_id=sig_id, status=status, reason=("" if ok else (summary or status)),
+                detail={"action": action, "mint": (sig or {}).get("mint"), "ticker": (sig or {}).get("ticker"),
+                        **({k: v for k, v in (extra or {}).items() if k in ("error", "raw_preview")})})
     try:
         import agent_ack as _jack
         _jack.write_ack(
@@ -24377,8 +24401,11 @@ async def signal_executor_loop() -> None:
                                     if _rfail:
                                         _signal_ack(sig, sig_id, action, str(_rs), False,
                                                     summary=f"{action} {_rs}: {str(_rerr or '')[:160]}")
+                                    elif "partial" in str(_rs).lower():
+                                        _signal_ack(sig, sig_id, action, str(_rs), False,
+                                                    summary=f"{action} {_rs}: some rows rejected {str(_rerr or '')[:140]}")
                                     else:
-                                        _signal_ack(sig, sig_id, action, "processed", True)
+                                        _signal_ack(sig, sig_id, action, str(_rs) if _rs else "processed", True)
                                 except Exception:
                                     pass
                             except Exception as e:
@@ -25711,6 +25738,8 @@ async def launch_request_loop() -> None:
                         if p.name not in _SNIPER_LAUNCH_SKIPPED:
                             _SNIPER_LAUNCH_SKIPPED.add(p.name)
                             _ol_action("launch_request_unreadable", None, file=p.name)
+                            _agent_memo("launch", False, f"launch request {p.name} unreadable, skipped",
+                                        request_id=p.stem, reason="not a JSON object")
                         continue
                     rid = str(req.get("id") or p.stem)
                     if rid in seen or rid in rail_seen:
@@ -25723,6 +25752,10 @@ async def launch_request_loop() -> None:
                             _SNIPER_LAUNCH_SKIPPED.add(rid)
                             _ol_action("launch_request_not_armed", None, id=rid,
                                        confirm=req.get("confirm"), dry_run=req.get("dry_run"))
+                            _agent_memo("launch", True, f"launch {req.get('ticker') or rid}: not armed here "
+                                        f"(confirm={req.get('confirm')} dry_run={req.get('dry_run')}); the launch rail "
+                                        f"handles dry runs, result in json_relay/launch_results.json",
+                                        request_id=rid, status="not_armed_dry_run_route")
                         continue
                     # repo attacher (sniper_github): github_user -> pick, else pasted link, else no repo. Never blocks.
                     try:
@@ -25745,6 +25778,8 @@ async def launch_request_loop() -> None:
                         seen[rid]["status"] = f"move_failed:{type(e).__name__}"
                         _sl_write(SNIPER_LAUNCH_SEEN, seen)
                         _ol_action("launch_request_move_failed", None, id=rid, error=str(e)[:200])
+                        _agent_memo("launch", False, f"launch {rid}: could not move request, not launched",
+                                    request_id=rid, reason=f"{type(e).__name__}")
                         continue
                     _ol_action("launch_request_firing", None, id=rid, ticker=req.get("ticker"),
                                dev_buy_sol=req.get("dev_buy_sol"))
@@ -25768,6 +25803,12 @@ async def launch_request_loop() -> None:
                             _sg.invite_agent(str(req.get("requested_by") or "agent"), row["repo_url"], str(req.get("ticker") or ""))
                     except Exception as e:
                         _log(f"sniper_launch repo invite err: {e!r}", prefix="own_launch")
+                    _lok = str(row.get("status") or "").lower() in ("sent", "ok", "dry_run", "simulated", "success", "launched")
+                    _agent_memo("launch", _lok, f"launch {req.get('ticker') or rid}: {row.get('status')} "
+                                f"mode={row.get('mode')} mint={row.get('mint') or '-'}",
+                                request_id=rid, status=str(row.get("status")),
+                                reason=f"blockers={row.get('blockers')} error={row.get('error')}",
+                                detail={"signature": row.get("signature"), "mode": row.get("mode")})
                     _ol_action("launch_request_result", row.get("mint"), id=rid, status=row.get("status"),
                                mode=row.get("mode"), signature=row.get("signature"),
                                blockers=row.get("blockers"), error=row.get("error"), hooks=row.get("hooks"))
@@ -30147,7 +30188,11 @@ def write_positions_digest(force: bool = False) -> Optional[Path]:
 async def execute_set_protection_batch(sig: dict) -> None:
     """action=set_protection_batch: one reply per inbox check."""
     sig_id = sig.get("signal_id") or _now_iso()
-    items = sig.get("positions") or []
+    items = sig.get("positions") or sig.get("items") or []
+    if not items and str(os.environ.get("PROTECTION_BATCH_EMPTY_REJECT", "1")).strip().lower() not in ("0", "false", "off", "no"):
+        await write_signal_response(sig.get("signal_id") or sig.get("id"), "rejected",
+                                    error="set_protection_batch: no rows (send \"positions\": [{\"mint\": ..., \"sl_pct\": ...}])")
+        return
     keep_others = sig.get("keep_others", True) is not False
     results = []
     listed = set()
@@ -33521,8 +33566,19 @@ async def wallet_tracking_loop() -> None:
             # makes name_and_track actually DO something instead of evaporating.
             try:
                 if WALLET_COMMAND_FILE.exists():
-                    cmds = json.loads(WALLET_COMMAND_FILE.read_text(encoding="utf-8") or "{}")
-                    _apply_wallet_commands(cmds)
+                    try:
+                        cmds = json.loads(WALLET_COMMAND_FILE.read_text(encoding="utf-8") or "{}")
+                    except Exception as _wje:
+                        cmds = None
+                        _agent_memo("wallet_command", False, "wallet_command.json unreadable, dropped",
+                                    reason=f"bad JSON: {type(_wje).__name__}")
+                    if isinstance(cmds, dict):
+                        _wres = _apply_wallet_commands(cmds)
+                        _agent_memo("wallet_command", _wres is not False,
+                                    f"wallet_command applied: name={len(cmds.get('name') or {})} "
+                                    f"track={len(cmds.get('track') or [])} untrack={len(cmds.get('untrack') or [])}"
+                                    if _wres is not False else "wallet_command failed",
+                                    request_id=cmds.get("id"), reason="see meme_sniper log (wallet)")
                     try:
                         WALLET_COMMAND_FILE.unlink()
                     except Exception:
@@ -41108,9 +41164,11 @@ def _apply_archetype_commands() -> None:
     try:
         with open(ARCHETYPE_COMMAND_FILE, encoding="utf-8") as f:
             cmd = json.load(f)
-    except Exception:
+    except Exception as _aje:
         try: ARCHETYPE_COMMAND_FILE.unlink()
         except Exception: pass
+        _agent_memo("archetype_command", False, "archetype_command.json unreadable, dropped",
+                    reason=f"bad JSON: {type(_aje).__name__}")
         return
     roster = _load_archetype_roster()
     changed = False
@@ -41124,6 +41182,11 @@ def _apply_archetype_commands() -> None:
             _log(f"archetype deactivated by the agent: {k}", prefix="arch")
     if changed:
         _save_archetype_roster(roster)
+    _unknown = [k for k in list(cmd.get("activate") or []) + list(cmd.get("deactivate") or []) if k not in roster]
+    _agent_memo("archetype_command", not _unknown,
+                f"archetype_command: activate={len(cmd.get('activate') or [])} deactivate={len(cmd.get('deactivate') or [])}"
+                + (f", unknown keys {_unknown[:5]}" if _unknown else " applied"),
+                request_id=cmd.get("id"), reason=(f"not in roster: {_unknown[:5]}" if _unknown else ""))
     try: ARCHETYPE_COMMAND_FILE.unlink()
     except Exception: pass
 
@@ -42323,7 +42386,9 @@ def relay_ack(relay_file, kind: str, ok: bool, summary: str, *,
         if needs_owner:
             dest, tag = ws / "owner_inbox", "needs_code"
         elif ok:
-            dest, tag = ws / "inbox_results" / "done", "success"
+            # loop closure: confirmations land in the agent inbox too (RELAY_ACK_SUCCESS_TO_INBOX=0 = done/ only)
+            dest, tag = (ws / "inbox" if str(os.environ.get("RELAY_ACK_SUCCESS_TO_INBOX", "1")).strip().lower()
+                         not in ("0", "false", "off", "no") else ws / "inbox_results" / "done"), "success"
         else:
             dest, tag = ws / "inbox", "failed"
         dest.mkdir(parents=True, exist_ok=True)
@@ -42331,6 +42396,8 @@ def relay_ack(relay_file, kind: str, ok: bool, summary: str, *,
         pkt = {
             "from": "meme_sniper", "to": "agent", "type": "relay_ack",
             "relay_file": name, "kind": kind,
+            "request_id": (detail or {}).get("signal_id") or (detail or {}).get("id") if isinstance(detail, dict) else None,
+            "reason": "" if ok else summary,
             "outcome": tag, "ok": bool(ok), "summary": summary,
             "detail": detail or {}, "at": _now_iso(),
             "doctrine": ("Ack for something you put in json_relay. success -> archived; "

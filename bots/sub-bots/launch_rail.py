@@ -796,6 +796,21 @@ def _collect_relay_requests() -> list[tuple[dict, Optional[Path]]]:
     return out
 
 
+
+def _agent_memo(kind, ok, summary, **kw):
+    """Loop closure memo in inbox/ (agent_memo.py; AGENT_MEMOS=0 = off). Never raises."""
+    try:
+        import sys as _s, os as _o
+        _d = _o.path.dirname(_o.path.abspath(__file__))
+        for _c in (_d, _o.path.join(_d, "sub-bots")):
+            if _c not in _s.path:
+                _s.path.insert(0, _c)
+        import agent_memo as _am
+        return _am.write(kind, ok, summary, **kw)
+    except Exception:
+        return None
+
+
 def process_relay(*, no_upload: Optional[bool] = None, ipfs: str = "pinata") -> list[dict]:
     """Poll the launch relay once. Each new id is processed exactly once (launch_rail_seen.json).
     Live when the rail is enabled and LAUNCH_RAIL_LIVE=1 (setup config), unless the request sets dry_run:true."""
@@ -833,6 +848,12 @@ def process_relay(*, no_upload: Optional[bool] = None, ipfs: str = "pinata") -> 
                    "why_not_live": None if res.get("mode") == "LIVE" else (
                        res.get("blockers") or (["request dry_run is true"] if req.get("dry_run") else []))}
         log_attempt({"relay": True, **res})
+        _st = str(res.get("status") or "")
+        _agent_memo("launch", not (_st.startswith("rejected") or _st in ("error", "blocked", "failed")),
+                    f"launch rail {res.get('ticker') or rid or '?'}: {_st} mode={res.get('mode')}"
+                    + (f" why_not_live={res.get('why_not_live')}" if res.get("why_not_live") else ""),
+                    request_id=rid or None, status=_st, source="launch_rail",
+                    reason=f"errors={res.get('errors')} blockers={res.get('blockers')} error={res.get('error')}")
         if rid:
             results["results"][rid] = res
         _write_json_atomic(RELAY_RESULTS_FILE, results)

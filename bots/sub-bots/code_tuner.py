@@ -1766,6 +1766,21 @@ def _apply_reset_action(data: dict, registry: dict) -> str:
     save_json(BOTS_LIST_FILE, registry)
     return f"reset '{bot}': cleared curated config + outputs; will re-enter setup mode"
 
+
+def _agent_memo(kind, ok, summary, **kw):
+    """Loop closure memo in inbox/ (agent_memo.py; AGENT_MEMOS=0 = off). Never raises."""
+    try:
+        import sys as _s, os as _o
+        _d = _o.path.dirname(_o.path.abspath(__file__))
+        for _c in (_d, _o.path.join(_d, "sub-bots")):
+            if _c not in _s.path:
+                _s.path.insert(0, _c)
+        import agent_memo as _am
+        return _am.write(kind, ok, summary, **kw)
+    except Exception:
+        return None
+
+
 async def _process_setup_response_file() -> None:
     """
     Read code_tuner_setup.json, validate, apply, delete file, fire next packet.
@@ -1782,6 +1797,8 @@ async def _process_setup_response_file() -> None:
     raw = load_json(SETUP_RESPONSE_FILE, default=None)
     if raw is None:
         log_tune("setup response file unreadable — deleting")
+        _agent_memo("code_tuner_setup", False, "code_tuner_setup.json unreadable, deleted", source="code_tuner",
+                    reason="not valid JSON")
         try: os.remove(SETUP_RESPONSE_FILE)
         except Exception: pass
         return
@@ -1842,6 +1859,9 @@ async def _process_setup_response_file() -> None:
         # Single-bot reset doesn't fire a fresh invitation — the agent can pick
         # this bot back up whenever via 'configure' action.
 
+    _agent_memo("code_tuner_setup", True, f"code_tuner_setup '{action}' processed"
+                + (f" for {raw.get('bot') or raw.get('target_bot')}" if isinstance(raw, dict) and (raw.get('bot') or raw.get('target_bot')) else ""),
+                request_id=(raw.get("id") if isinstance(raw, dict) else None), source="code_tuner", status=str(action))
     # Delete the response file after processing
     try: os.remove(SETUP_RESPONSE_FILE)
     except Exception as e: log_tune(f"setup response delete err: {e}")
@@ -3962,6 +3982,8 @@ async def _process_meeting_file() -> None:
     raw = load_json(MEETING_FILE, default=None)
     if not isinstance(raw, dict):
         log_tune("meeting file unreadable — deleting")
+        _agent_memo("code_tuner_meeting", False, "code_tuner_meeting.json unreadable, deleted", source="code_tuner",
+                    reason="not a JSON object")
         try: os.remove(MEETING_FILE)
         except Exception: pass
         return
@@ -3970,6 +3992,8 @@ async def _process_meeting_file() -> None:
     authored = _agent_authored_registry_action(raw)
     if not directive.strip() and authored is None:
         log_tune("meeting file empty - deleting")
+        _agent_memo("code_tuner_meeting", False, "code_tuner_meeting.json had no message, deleted", source="code_tuner",
+                    reason="no message / directive / text field", request_id=raw.get("id"))
         try: os.remove(MEETING_FILE)
         except Exception: pass
         return

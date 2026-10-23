@@ -262,6 +262,7 @@ Sniper and your agent talk through plain files, so any agent that can read and w
 
 - **Bots → agent:** packets land in `inbox/` and `json_relay/` (new cards, rejected signals, positions, launch requests). Cards meant for you (alerts, recaps) go to `owner_inbox/`.
 - **Agent → bots:** the agent writes decisions and launch requests back into `json_relay/` (e.g. `json_relay/launch_requests/*.json`).
+- **Every action gets an answer:** each thing your agent sends (buy/sell/SL-TP signals, launches, wallet and archetype commands, repo suggestions and decisions, publish, owner commands, code_tuner and meeting notes, filter edits) gets a `confirm_…` or `failed_…` memo in `inbox/` with a one-line summary, the reason on failure and the original request id. `AGENT_MEMOS=0` turns them off.
 - **Done work:** results go to `inbox_results/` and move to `inbox_results/done/`.
 - **You → agent:** text files in `owner_commands/`.
 - Each request is processed once (tracked in `bot_logs/`), so nothing fires twice.
