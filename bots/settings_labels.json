@@ -1104,6 +1104,12 @@
       "unit": "s",
       "src": "env"
     },
+    "OWNER_ROAST_TARGETING": {
+      "label": "Roast whoever made the trades",
+      "section": "Alerts",
+      "unit": "on/off",
+      "src": "env"
+    },
     "OWNER_POS_ENABLED": {
       "label": "Ask before managing a bag the bot did not buy",
       "section": "Owner positions",
