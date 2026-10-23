@@ -302,14 +302,14 @@ Ask the agent for a roast, recap or trade autopsy whenever you want instead of w
 
 | Command | What you get |
 |---|---|
-| `/roast` | An honest roast of the last 24h, from the same Overseer prompt and judges as the nightly run |
+| `/roast` | An honest roast of the last 24h, aimed at whoever made the trades: trades you made yourself (manual buys, bags you kept with `/leave`) roast you; the agent's trades get the agent's own Overseer self-roast; a mixed book gets both. `/roast agent` always roasts the agent |
 | `/recap` | The same judges, framed as a recap (strong, weak, missed, next) |
 | `/autopsy` or `/autopsy last` | The latest closed trade: PnL, exit trigger, post-close watch (did it run after you sold) |
 | `/autopsy gork` or `/autopsy $gork` | The latest closed trade on that ticker |
 | `/manage <ticker>` or `/leave <ticker>` | Answer an owner-position question (section 6.6) |
 | Plain text | "roast me", "recap please", "autopsy on $gork": commands are case-insensitive |
 
-`/roast` and `/recap` make one SI call each and share a cooldown (`OWNER_ROAST_COOLDOWN_S`, default 900 s). `/autopsy` reads `bot_logs/autopsy_reports.json` and makes no SI call. On-demand answers never write the nightly packet, history or LEARNINGS, never change the 2 AM schedule and never trade. Every reply is also saved in `inbox_results/owner_replies/`.
+Set `OWNER_ROAST_TARGETING=off` to always roast the agent (the old behaviour). `/roast` and `/recap` make one SI call each (a mixed-book roast makes two) and share a cooldown (`OWNER_ROAST_COOLDOWN_S`, default 900 s). `/autopsy` reads `bot_logs/autopsy_reports.json` and makes no SI call. On-demand answers never write the nightly packet, history or LEARNINGS, never change the 2 AM schedule and never trade. Every reply is also saved in `inbox_results/owner_replies/`.
 
 Pick a source with `OWNER_COMMANDS` (wizard > Owner Commands, or `.env`):
 

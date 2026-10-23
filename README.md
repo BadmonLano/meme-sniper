@@ -247,7 +247,7 @@ All optional. Pick channels with a comma list in `bots/.env`, e.g. `ALERT_CHANNE
 2. Set `NTFY_TOPIC=` (and `NTFY_URL` / `NTFY_TOKEN` if self-hosted or protected). Add `ntfy`.
 
 **Owner commands (talk back to it, off by default)**
-Ask for `/roast`, `/recap` or `/autopsy [ticker|last]` by Telegram through a separate command bot (`OWNER_COMMANDS`, `OWNER_COMMANDS_TG_TOKEN`, `OWNER_COMMANDS_TG_CHAT_ID`) or by dropping a text file in `owner_commands/`. Replies land in your alert channels and `inbox_results/owner_replies/`. See SETUP.md section 6.5.
+Ask for `/roast`, `/recap` or `/autopsy [ticker|last]` by Telegram through a separate command bot (`OWNER_COMMANDS`, `OWNER_COMMANDS_TG_TOKEN`, `OWNER_COMMANDS_TG_CHAT_ID`) or by dropping a text file in `owner_commands/`. Replies land in your alert channels and `inbox_results/owner_replies/`. A roast goes to whoever made the trades: your own trades roast you, the agent's trades get its self-roast. See SETUP.md section 6.5.
 
 **iMessage on Mac (optional, community recipe)**
 Sniper has no built-in iMessage channel yet (`imessage` in `ALERT_CHANNELS` is ignored and logged as planned). If you're on a Mac signed into Messages, your agent can forward alerts itself with:

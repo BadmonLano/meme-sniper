@@ -1716,7 +1716,7 @@ The memory cross-reference is what turns missed_runner from "noted, moving on" i
 
 ## Owner Commands (on-demand reports)
 
-The owner can ask for `/roast`, `/recap` or `/autopsy [ticker|last]` (or plain text like "roast me") at any time. `bots/sub-bots/owner_commands.py` answers from the Overseer and `bot_logs/autopsy_reports.json`; replies land in `inbox_results/owner_replies/`. Modes: `off` (default), `file`, `telegram`; `/roast` and `/recap` share a 900 s cooldown. You may serve a file-mode request by writing the command into `owner_commands/`. Full rules: the autoagent skill, section "Owner Commands". These answers never trade; any trade they suggest goes through the normal buy/pass and position-mod paths here.
+The owner can ask for `/roast`, `/recap` or `/autopsy [ticker|last]` (or plain text like "roast me") at any time. `bots/sub-bots/owner_commands.py` answers from the Overseer and `bot_logs/autopsy_reports.json`; replies land in `inbox_results/owner_replies/`. A roast goes to whoever opened the trades: the owner's own buys and kept bags roast the owner, your buys get your own Overseer self-roast, a mixed book gets both (kill switch `OWNER_ROAST_TARGETING=off`). Modes: `off` (default), `file`, `telegram`; `/roast` and `/recap` share a 900 s cooldown. You may serve a file-mode request by writing the command into `owner_commands/`. Full rules: the autoagent skill, section "Owner Commands". These answers never trade; any trade they suggest goes through the normal buy/pass and position-mod paths here.
 
 ## the actions the agent can fire
 

@@ -210,5 +210,97 @@ class OwnerPositions(unittest.TestCase):
         self.assertFalse(r["ok"]); self.assertIn("Usage", r["text"])
 
 
+
+class RoastTarget(WithOverseer):
+    """v1.0.2: the roast goes to whoever opened the positions. Dummy books only."""
+    def setUp(self):
+        super().setUp()
+        self.grok = []
+        self._cg = getattr(self.o, "call_grok", None)
+
+        async def cg(system, user):
+            self.grok.append(user)
+            return {"ok": True, "verdict": {"headline": "you held it into the floor", "score_0_to_10": 3,
+                                            "what_was_weak": ["held past your own stop"]}, "source": "stub_owner"}
+        self.o.call_grok = cg
+        self.seen_inputs = []
+        base = self.o.run_judgment
+
+        async def judge(inputs, top):
+            self.seen_inputs.append(json.loads(json.dumps(inputs, default=str)))
+            return await base(inputs, top)
+        self.o.run_judgment = judge
+        os.environ.pop("OWNER_ROAST_TARGETING", None)
+
+    def tearDown(self):
+        if self._cg is not None:
+            self.o.call_grok = self._cg
+        os.environ.pop("OWNER_ROAST_TARGETING", None)
+        super().tearDown()
+
+    def book(self, positions=None, autopsies=None, owner_recs=None):
+        L = self.o.LOGS
+        for name, data in (("positions.json", positions or {}), ("autopsy_reports.json", autopsies or []),
+                           ("owner_positions_sniper.json", {"records": owner_recs or {}})):
+            with open(os.path.join(L, name), "w") as f:
+                json.dump(data, f)
+
+    AGENT = {"AG1": {"mint": "AG1", "ticker": "gork", "originating_signal_id": "sig_123", "last_pnl_pct": -12.0}}
+    OWNER = {"OW1": {"mint": "OW1", "ticker": "FLOW", "originating_signal_id": "op_FLOW_OW1xxx_1_manage",
+                     "last_pnl_pct": -41.0, "peak_pnl_pct": 30.0, "params": {"stop_loss_pct": 25}}}
+
+    def test_opener_fields(self):
+        f = oc.position_opener
+        self.assertEqual(f({"originating_signal_id": "sig_9"}), "agent")
+        self.assertEqual(f({"originating_signal_id": "op_X_1_manage"}), "owner")
+        self.assertEqual(f({"source": "owner_position"}), "owner")
+        self.assertEqual(f({"opened_by": "manual"}), "owner")
+        self.assertEqual(f({"position": {"source": "owner"}}), "owner")
+        self.assertEqual(f({"promoted_from_holding": True, "reasoning_at_buy": "promoted from treasury"}), "agent")
+        self.assertEqual(f({"exit_trigger": "manual"}), "agent")      # who CLOSED it does not matter
+
+    def test_agent_only_book_self_roast(self):
+        self.book(positions=self.AGENT)
+        r = run(oc.roast_now("roast", send=False))
+        self.assertEqual(r["roast_target"], "agent"); self.assertEqual(self.grok, [])
+        self.assertIn("the agent, on its own calls", r["text"]); self.assertEqual(len(self.judged), 1)
+
+    def test_owner_only_book_roasts_owner(self):
+        self.book(positions=self.OWNER, owner_recs={"OW2": {"ticker": "PUMP", "state": "leave", "detected_ts": 0}})
+        r = run(oc.roast_now("roast", send=False))
+        self.assertEqual(r["roast_target"], "owner"); self.assertEqual(self.judged, [])   # no agent roast
+        self.assertIn("you, on the trades you made", r["text"]); self.assertEqual(r["owner_positions"], 2)
+        self.assertIn("still holding past your -25% stop", self.grok[0]); self.assertIn("gave back 71 pts", self.grok[0])
+        self.assertIn("PUMP", self.grok[0])
+
+    def test_mixed_book_split(self):
+        self.book(positions={**self.AGENT, **self.OWNER})
+        self.o.collect_inputs = lambda: {"meme": {"positions_open": {**self.AGENT, **self.OWNER}}}
+        r = run(oc.roast_now("roast", send=False))
+        self.assertEqual(r["roast_target"], "split")
+        self.assertIn("the agent, on its own calls", r["text"]); self.assertIn("you, on the trades you made", r["text"])
+        self.assertEqual(list(self.seen_inputs[0]["meme"]["positions_open"]), ["AG1"])    # agent graded on its own calls
+        self.assertNotIn("gork", self.grok[0])                                         # owner graded on theirs
+
+    def test_owner_roast_falls_back_local(self):
+        async def boom(s, u): raise RuntimeError("no key")
+        self.o.call_grok = boom
+        self.book(positions=self.OWNER)
+        r = run(oc.roast_now("roast", send=False))
+        self.assertEqual(r["judge"], "local"); self.assertIn("FLOW", r["text"])
+
+    def test_forced_agent_and_kill_switch(self):
+        self.book(positions=self.OWNER)
+        self.assertEqual(oc.parse_command("/roast agent"), ("roast", "agent"))
+        self.assertEqual(oc.parse_command("roast yourself"), ("roast", "agent"))
+        self.assertEqual(oc.parse_command("roast me"), ("roast", None))
+        r = run(oc.roast_now("roast", "agent", send=False))
+        self.assertEqual(r["roast_target"], "agent")
+        os.environ["OWNER_ROAST_TARGETING"] = "off"
+        self.o.save_json_atomic(oc._roast_state_path(), {"last_ts": 0})
+        r = run(oc.roast_now("roast", send=False))
+        self.assertEqual(r["roast_target"], "agent"); self.assertEqual(self.grok, [])
+        self.assertIn("🔥 <b>Roast</b> |", r["text"])                                 # legacy header, untouched
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

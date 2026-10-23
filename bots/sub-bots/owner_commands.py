@@ -1,7 +1,10 @@
 """owner_commands.py: on-demand owner commands (optional, off by default).
 
 The owner asks, the agent answers:
-  /roast                    honest roast of the last 24h (Overseer prompt and judges)
+  /roast                    honest roast of the last 24h, aimed at whoever made the trades:
+                            the owner's own trades -> the owner; the agent's -> agent self-roast
+                            (Overseer); mixed -> both. "/roast agent" forces the self-roast.
+                            OWNER_ROAST_TARGETING=off = old behaviour (always the agent).
   /recap                    plain recap of the last 24h (same judges, kinder framing)
   /autopsy [ticker|last]    the latest (or named) closed trade, from autopsy_reports.json
   /manage <ticker>          let the bot manage an owner position it found (a bag or perps
@@ -106,7 +109,9 @@ def parse_command(text: str):
         parts = low.split()
         cmd = parts[0][1:].split("@", 1)[0]          # "/Roast@MyBot" -> "roast"
         arg = t.split()[1].lstrip("$") if len(parts) > 1 else None
-        if cmd in ("roast", "recap"):
+        if cmd == "roast":
+            return ("roast", _roast_who(arg))
+        if cmd == "recap":
             return (cmd, None)
         if cmd in ("autopsy", "postmortem"):
             return ("autopsy", (arg or "last"))
@@ -124,10 +129,17 @@ def parse_command(text: str):
             target = m.group(1)
         return ("autopsy", target)
     if "roast" in low:
-        return ("roast", None)
+        return ("roast", _roast_who(re.split(r"(?i)roast", t, 1)[-1]))
     if any(w in low for w in ("recap", "summary", "how was the day", "how'd we do", "how did we do")):
         return ("recap", None)
     return ("help", None)
+
+
+def _roast_who(arg) -> str:
+    """Optional roast target word: "agent"/"yourself"/"self"/"bot" forces the agent self-roast.
+    Anything else ("me", blank) -> None = pick by who made the trades (see roast_target)."""
+    a = str(arg or "").lower()
+    return "agent" if re.search(r"\b(agent|yourself|self|bot)\b", a) else None
 
 
 # ── overseer link ────────────────────────────────────────────────────────────
@@ -286,6 +298,176 @@ def _save_reply(kind: str, target, text: str, extra: dict = None) -> str:
     return path
 
 
+# ── roast target: whoever made the trades gets roasted ───────────────────────
+# "roast me" used to always run the Overseer, which grades the AGENT. If the owner made the
+# trades (manual buys, bags the owner kept with /leave, owner-ordered positions) that roast
+# hit the wrong person. Now each position is attributed by who OPENED it, from the fields
+# the sniper already writes:
+#   owner : holdings/position source "owner_position" | originating_signal_id "op_..."
+#           (an owner bag the bot took over) | opened_by/source "owner"/"manual" |
+#           an owner_positions_sniper.json record the owner kept (state leave / pending)
+#   agent : everything else the sniper opened (agent signals, promotions, launches)
+# owner-only book -> roast the owner;  agent-only (or empty) -> agent self-roast (Overseer);
+# mixed -> both, each on its own positions.  Kill switch: OWNER_ROAST_TARGETING=off brings
+# back the old behaviour (always the Overseer agent roast).
+OWNER_TAGS = ("owner", "manual", "owner_position", "owner_order", "user")
+
+
+def roast_targeting_on() -> bool:
+    return str(_envv("OWNER_ROAST_TARGETING") or "on").strip().lower() not in ("off", "0", "false", "no")
+
+
+def position_opener(p: dict) -> str:
+    """'owner' or 'agent' for one position / autopsy row (opener only, not who closed it)."""
+    if not isinstance(p, dict):
+        return "agent"
+    pos = p.get("position") if isinstance(p.get("position"), dict) else {}
+    get = lambda k: p.get(k) if p.get(k) not in (None, "") else pos.get(k)
+    for k in ("opened_by", "source", "entry_source", "signal_origin", "tag", "class_source"):
+        v = str(get(k) or "").lower()
+        if v and any(v == t or v.startswith(t + "_") or v.startswith(t + ":") for t in OWNER_TAGS):
+            return "owner"
+    sid = str(get("originating_signal_id") or get("signal_id") or "").lower()
+    if sid.startswith("op_"):
+        return "owner"
+    if str(get("reasoning_at_buy") or "").lower().startswith("owner_position"):
+        return "owner"
+    return "agent"
+
+
+def _rows(x) -> list:
+    if isinstance(x, dict):
+        x = x.get("reports") or [dict(v, mint=v.get("mint") or k) for k, v in x.items()
+                                 if isinstance(v, dict) and not str(k).startswith("_")]
+    return [r for r in (x or []) if isinstance(r, dict)]
+
+
+def _recent(rows: list, hours: float = 24.0) -> list:
+    cut = time.time() - hours * 3600
+    out = []
+    for r in rows:
+        ts = None
+        for k in ("resolved_at", "closed_at", "exit_at", "timestamp"):
+            v = r.get(k)
+            if isinstance(v, (int, float)):
+                ts = float(v); break
+            if isinstance(v, str) and v:
+                try:
+                    ts = datetime.fromisoformat(v.replace("Z", "+00:00")).timestamp(); break
+                except ValueError:
+                    pass
+        if ts is None or ts >= cut:
+            out.append(r)
+    return out
+
+
+def classify_book(logs: str = None) -> dict:
+    """-> {"owner": [...], "agent": [...]} over open positions, last-24h closes and owner-kept bags."""
+    o = overseer()
+    logs = logs or o.LOGS
+    book = {"owner": [], "agent": []}
+    seen = set()
+    for r in _rows(o.load_json(os.path.join(logs, "positions.json"), {}) or {}):
+        book[position_opener(r)].append(dict(r, _state="open")); seen.add(r.get("mint"))
+    for r in _recent(_rows(o.load_json(os.path.join(logs, "autopsy_reports.json"), []) or [])):
+        book[position_opener(r)].append(dict(r, _state="closed"))
+    st = o.load_json(os.path.join(logs, "owner_positions_sniper.json"), {}) or {}
+    recs = st.get("records") if isinstance(st, dict) else None
+    for mint, rec in (recs or {}).items():
+        if isinstance(rec, dict) and rec.get("state") in ("leave", "pending") and mint not in seen:
+            book["owner"].append(dict(rec, mint=mint, _state="owner_held"))
+    return book
+
+
+def roast_target(book: dict, forced: str = None) -> str:
+    """'owner' | 'agent' | 'split'."""
+    if forced == "agent" or not roast_targeting_on():
+        return "agent"
+    n_o, n_a = len(book.get("owner") or []), len(book.get("agent") or [])
+    if n_o and n_a:
+        return "split"
+    return "owner" if n_o else "agent"
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _held_h(r: dict):
+    h = _num(r.get("held_hours"))
+    if h is not None:
+        return h
+    ts = _num(r.get("opened_at_ts") or r.get("detected_ts"))
+    return (time.time() - ts) / 3600 if ts else None
+
+
+def owner_receipts(rows: list) -> list:
+    """Plain facts per owner position, the roast cites these (no SI needed)."""
+    out = []
+    for r in rows:
+        pos = r.get("position") if isinstance(r.get("position"), dict) else {}
+        tick = str(r.get("ticker") or pos.get("ticker") or str(r.get("mint") or "?")[:8]).lstrip("$")
+        pnl = _num(r.get("pnl_pct", r.get("last_pnl_pct", pos.get("pnl_pct"))))
+        peak = _num(r.get("peak_pnl_pct", pos.get("peak_pnl_pct")))
+        held = _held_h(r)
+        sl = _num(((r.get("params") or {}).get("stop_loss_pct")) if isinstance(r.get("params"), dict) else None)
+        bits = [f"${tick} ({r['_state'].replace('_', ' ')})"]
+        if held is not None: bits.append(f"held {held:.1f}h")
+        if pnl is not None: bits.append(f"pnl {pnl:+.1f}%")
+        if peak is not None and pnl is not None and peak - pnl >= 20: bits.append(f"gave back {peak - pnl:.0f} pts from a +{peak:.0f}% peak")
+        if sl is not None and pnl is not None and pnl <= -abs(sl): bits.append(f"still holding past your -{abs(sl):g}% stop")
+        if r.get("_state") == "owner_held": bits.append("you told the bot to leave it (alerts only)")
+        out.append(", ".join(bits))
+    return out
+
+
+OWNER_ROAST_SYSTEM = (
+    "You roast a memecoin trader about the trades THEY made by hand (not the bot). Tone: lowercase, "
+    "direct, funny, specific, no hedging, no financial-advice lines. Cite the receipts given (hold time, "
+    "pnl, peak given back, holding past their own stop). Return JSON: {\"headline\": str, \"score_0_to_10\": int, "
+    "\"what_was_weak\": [str], \"improvements_for_tomorrow\": [str]}.")
+
+
+async def owner_roast(rows: list) -> dict:
+    """Roast the OWNER on owner-opened positions. One SI call via the Overseer's judge
+    (call_grok) when available; local receipts-only roast when not. Never edits the Overseer."""
+    o = overseer()
+    rec = owner_receipts(rows)
+    verdict, judge = None, "local"
+    if hasattr(o, "call_grok") and rec:
+        try:
+            r = await o.call_grok(OWNER_ROAST_SYSTEM, "Owner's own positions, last 24h:\n" + "\n".join(f"- {x}" for x in rec))
+            if r.get("ok") and isinstance(r.get("verdict"), dict):
+                verdict, judge = r["verdict"], r.get("source") or "xai"
+        except Exception as e:
+            _log(f"owner roast judge failed, local roast: {e!r}")
+    if verdict is None:
+        verdict = {"headline": (f"{len(rec)} of these are yours, not the bot's. the bot can't hold your bags for you."
+                                if rec else "no hand-made trades to roast."),
+                   "score_0_to_10": None, "what_was_weak": rec[:3],
+                   "improvements_for_tomorrow": ["set a stop on your own bags or hand them to the bot with /manage"]}
+    return {"verdict": verdict, "meta": {"judge": judge}}
+
+
+def _agent_only_inputs(inputs: dict, book: dict) -> dict:
+    """Drop owner-opened positions from the Overseer inputs so the agent is graded on its own calls."""
+    owner_mints = {r.get("mint") for r in book.get("owner") or [] if r.get("mint")}
+    meme = inputs.get("meme") if isinstance(inputs.get("meme"), dict) else None
+    if not meme or not owner_mints:
+        return inputs
+    for k in ("positions_open", "autopsies_24h", "autopsies_sizing"):
+        v = meme.get(k)
+        if isinstance(v, list):
+            meme[k] = [r for r in v if not (isinstance(r, dict) and (r.get("mint") in owner_mints or position_opener(r) == "owner"))]
+        elif isinstance(v, dict):
+            meme[k] = {m: r for m, r in v.items() if m not in owner_mints and position_opener(r if isinstance(r, dict) else {}) != "owner"}
+    meme["_roast_scope"] = "agent-opened positions only (owner positions are roasted separately)"
+    return inputs
+
+
 async def roast_now(kind: str = "roast", target: str = None, *, send: bool = True,
                     source: str = "owner_commands") -> dict:
     """On-demand roast / recap / autopsy -> {ok, kind, text, reply_path, ...}.
@@ -307,10 +489,34 @@ async def roast_now(kind: str = "roast", target: str = None, *, send: bool = Tru
             o.save_json_atomic(_roast_state_path(), {"last_ts": time.time(), "kind": kind,
                                                      "at": datetime.now().isoformat(timespec="seconds")})
             _log(f"{kind} requested (source={source})")
-            inputs = o.collect_inputs()
-            judgment = await o.run_judgment(inputs, {})
-            res = {"ok": True, "kind": kind, "judge": judgment["meta"].get("judge"),
-                   "text": format_verdict(kind, judgment["verdict"], judgment["meta"])}
+            who = "agent"
+            book = {"owner": [], "agent": []}
+            if kind == "roast" and roast_targeting_on():
+                try:
+                    book = classify_book()
+                except Exception as e:
+                    _log(f"roast target: book unreadable, agent self-roast: {e!r}")
+                who = roast_target(book, target)
+            parts, judges = [], []
+            if who in ("agent", "split"):
+                inputs = o.collect_inputs()
+                if who == "split":
+                    inputs = _agent_only_inputs(inputs, book)
+                judgment = await o.run_judgment(inputs, {})
+                t = format_verdict(kind, judgment["verdict"], judgment["meta"])
+                if kind == "roast" and roast_targeting_on():
+                    t = t.replace("🔥 <b>Roast</b>", "🔥 <b>Roast: the agent, on its own calls</b>", 1)
+                parts.append(t); judges.append(judgment["meta"].get("judge"))
+            if who in ("owner", "split"):
+                oj = await owner_roast(book["owner"])
+                parts.append(format_verdict("roast", oj["verdict"], oj["meta"]).replace(
+                    "🔥 <b>Roast</b>", "🔥 <b>Roast: you, on the trades you made</b>", 1))
+                judges.append(oj["meta"].get("judge"))
+            if kind == "roast":
+                _log(f"roast target={who} owner_positions={len(book['owner'])} agent_positions={len(book['agent'])}")
+            res = {"ok": True, "kind": kind, "roast_target": who, "judge": "+".join(str(j) for j in judges),
+                   "owner_positions": len(book["owner"]), "agent_positions": len(book["agent"]),
+                   "text": "\n\n".join(parts)}
     res["reply_path"] = _save_reply(kind, target, res["text"], {k: v for k, v in res.items() if k != "text"})
     if send and res["text"]:
         await o.notify(res["text"])

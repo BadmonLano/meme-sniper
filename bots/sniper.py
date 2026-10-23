@@ -145,6 +145,7 @@ WIZARD_FIELDS = [
     ("OWNER_COMMANDS_TG_TOKEN", "Owner Commands Bot Token (A Second @BotFather Bot, Never The Alert Bot)", True, ""),
     ("OWNER_COMMANDS_TG_CHAT_ID", "Owner Commands Chat ID (Blank = Telegram Chat ID)", False, ""),
     ("OWNER_ROAST_COOLDOWN_S", "Owner Roast Cooldown In Seconds", False, "900"),
+    ("OWNER_ROAST_TARGETING", "Roast Whoever Made The Trades (On: Your Own Trades Roast You, The Agent's Roast The Agent; Off: Always Roast The Agent)", False, "on"),
     ("X_NOTIFY_TELEGRAM_TOKEN", "Backup alert bot token (optional): a second Telegram bot the warden sends alerts through. Use it if another app or agent already polls your main bot (Telegram allows one poller per bot). Enter = use the main token; alerts go to the same chat", True, ""),
 ]
 REQUIRED_KEYS = ("HOT_WALLET_PRIVATE_KEY", "RPC_URL", "GROK_API_KEY")   # GROK_API_KEY, or an Ollama brain
@@ -610,6 +611,7 @@ def _owner_cmd_rows(env: dict) -> list:
                  ("OWNER_COMMANDS_TG_CHAT_ID", "OWNER_COMMANDS_TG_CHAT_ID", False, None)]
     if owner_commands_mode(env) != "off":
         rows.append(("OWNER_ROAST_COOLDOWN_S", "OWNER_ROAST_COOLDOWN_S", False, None))
+        rows.append(("OWNER_ROAST_TARGETING", "OWNER_ROAST_TARGETING", False, None))
     return rows
 
 

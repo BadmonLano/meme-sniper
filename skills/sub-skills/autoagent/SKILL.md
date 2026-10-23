@@ -1455,7 +1455,7 @@ The owner can ask for a report at any time instead of waiting for the nightly 2 
 
 | Command | Answer |
 |---|---|
-| `/roast` | Honest roast of the last 24h (one SI call) |
+| `/roast` | Honest roast of the last 24h, aimed at whoever made the trades (see "Who gets roasted") |
 | `/recap` | Same judges, framed as strong / weak / missed / next (one SI call) |
 | `/autopsy` or `/autopsy last` | Latest closed trade from `bot_logs/autopsy_reports.json`: PnL, exit trigger, post-close watch (no SI call) |
 | `/autopsy <ticker>` | Latest closed trade on that ticker, `$` optional |
@@ -1467,6 +1467,15 @@ The owner can ask for a report at any time instead of waiting for the nightly 2 
 - `telegram`: a separate command bot (`OWNER_COMMANDS_TG_TOKEN`, never the alert bot) reads only the owner's chat and replies there. It stops on a webhook or a 409 instead of fighting another reader.
 
 **Replies** are always saved as JSON in `inbox_results/owner_replies/` (kind, target, time, text). Read the newest one there to see what the owner was told.
+
+**Who gets roasted (v1.0.2):** a roast goes to whoever OPENED the positions, never to the owner by default.
+- Each open position and each close from the last 24h is attributed by its opener, from fields the sniper already writes: owner = `source`/`opened_by` `owner_position`/`owner`/`manual`, an `originating_signal_id` starting `op_` (an owner bag the bot took over with `/manage`), or an `owner_positions_sniper.json` bag the owner kept (`leave` or still pending). Everything else the sniper opened (agent signals, promotions, launches) is the agent's. Who closed it does not matter.
+- Only the owner's trades: the owner gets roasted on them (hold time, PnL, peak given back, holding past their own stop). One SI call; with no judge it falls back to a receipts-only roast.
+- Only the agent's trades, or none: the agent roasts itself. That is the Overseer roast of your own calls, same as the nightly run. Never turn it on the owner.
+- Mixed: two sections, "the agent, on its own calls" (the Overseer sees only agent-opened positions) and "you, on the trades you made". Two SI calls.
+- "roast yourself" or `/roast agent` forces the agent self-roast. "roast me" picks by the book like a plain `/roast`.
+- Kill switch: `OWNER_ROAST_TARGETING=off` returns to the old behaviour (always the Overseer agent roast). Default `on`.
+- When you relay a roast, keep the target straight: do not tell the owner they held too long on a bag you opened, and do not roast your own calls as if they were the owner's.
 
 **Cooldown:** `/roast` and `/recap` share `OWNER_ROAST_COOLDOWN_S` (default 900 s). Inside it the owner gets "cooling down, try again in N min" and no SI call is made. `/autopsy` has no cooldown.
 
