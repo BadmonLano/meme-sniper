@@ -1,0 +1,1405 @@
+{
+  "_meta": {
+    "schema_version": "v1.0",
+    "bot": "meme_sniper",
+    "created_at": "2026-06-01T15:54:11-04:00",
+    "last_modified_at": "2026-10-16T18:37:31-04:00",
+    "last_modified_by": "owner_env",
+    "doc": "Source of truth for every tunable parameter in meme_sniper. Edit directly (file watcher reloads on mtime change) OR write natural-language directive to json_relay/sniper_meeting.json. Hardcoded floors (bonded dexId, freeze/mint authority null) live in code, not here — they are never tunable."
+  },
+  "knobs": {
+    "TRENDING_TICK_ACTIVE_SECONDS": {
+      "value": 3600,
+      "default": 3600,
+      "code_default": 900,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "Trending boosts scanner interval during active hours",
+      "tunable": true,
+      "type": "int",
+      "min": 300,
+      "max": 21600,
+      "history": [
+        {
+          "changed_at": "2026-08-16T12:54:25-04:00",
+          "from": 3600,
+          "to": 900,
+          "change_type": "code_default_refresh",
+          "by": "bootstrap",
+          "reason": "code default moved; reference field corrected. The live `value` was NOT changed."
+        }
+      ],
+      "code_default_drift": {
+        "file_code_default": 3600,
+        "current_code_default": 900,
+        "detected_at": "2026-08-16T12:54:25-04:00",
+        "value_in_effect": 3600,
+        "hand_tuned": false,
+        "resolved": true,
+        "note": "the code's default changed and this file was carrying the old one. The LOOP READS THIS FILE's `value`, so the new code default is NOT in effect. `code_default` has been corrected to the current code default so `value` now reads honestly as an override; `value` itself was NOT touched. If this knob was never hand-tuned, the value in effect is a stale default nobody chose - promote it deliberately (default_promotion) rather than assuming the const is live."
+      }
+    },
+    "TRENDING_TICK_OFFHOURS_SECONDS": {
+      "value": 7200,
+      "default": 7200,
+      "code_default": 1800,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "Trending boosts scanner interval during off-hours",
+      "tunable": true,
+      "type": "int",
+      "min": 600,
+      "max": 43200,
+      "history": [
+        {
+          "changed_at": "2026-08-16T12:54:25-04:00",
+          "from": 7200,
+          "to": 1800,
+          "change_type": "code_default_refresh",
+          "by": "bootstrap",
+          "reason": "code default moved; reference field corrected. The live `value` was NOT changed."
+        }
+      ],
+      "code_default_drift": {
+        "file_code_default": 7200,
+        "current_code_default": 1800,
+        "detected_at": "2026-08-16T12:54:25-04:00",
+        "value_in_effect": 7200,
+        "hand_tuned": false,
+        "resolved": true,
+        "note": "the code's default changed and this file was carrying the old one. The LOOP READS THIS FILE's `value`, so the new code default is NOT in effect. `code_default` has been corrected to the current code default so `value` now reads honestly as an override; `value` itself was NOT touched. If this knob was never hand-tuned, the value in effect is a stale default nobody chose - promote it deliberately (default_promotion) rather than assuming the const is live."
+      }
+    },
+    "WATCHLIST_RECHECK_S": {
+      "value": 1800,
+      "default": 1800,
+      "code_default": 1800,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "How often to re-evaluate tokens on the watchlist (sniper rechecks for runners)",
+      "tunable": true,
+      "type": "int",
+      "min": 300,
+      "max": 7200,
+      "history": []
+    },
+    "DEX_PAID_WATCH_TICK_S": {
+      "value": 1800,
+      "default": 1800,
+      "code_default": 1800,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "How often to re-check socially-thin tokens that paid for dex_paid status",
+      "tunable": true,
+      "type": "int",
+      "min": 300,
+      "max": 7200,
+      "history": []
+    },
+    "META_REFRESH_INTERVAL_S": {
+      "value": 1800,
+      "default": 1800,
+      "code_default": 1800,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "How often to recompute the current dominant meta from trending tracks",
+      "tunable": true,
+      "type": "int",
+      "min": 600,
+      "max": 14400,
+      "history": []
+    },
+    "MISSED_RUNNER_AUTOPSY_TICK_S": {
+      "value": 5400,
+      "default": 5400,
+      "code_default": 5400,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "How often to scan for missed runners (tokens we filtered that ran 2x+)",
+      "tunable": true,
+      "type": "int",
+      "min": 1800,
+      "max": 86400,
+      "history": [
+        {
+          "at": "2026-10-15T01:58:00-04:00",
+          "from": 14400,
+          "to": 5400,
+          "by": "owner-approved cadence change (missed-runner analysis 4h -> 90 min; per-mint report cooldown keeps 4h)"
+        }
+      ]
+    },
+    "SCANNER_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause the main scanner loop. New bonded tokens will not generate packets.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "TRENDING_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause the trending scanner loop (boosted tokens scan)",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "WATCHLIST_RECHECK_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause watchlist rechecks. Existing watchlist entries stay but no recheck packets",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "DEX_PAID_MONITOR_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause dex_paid monitoring of socially-thin tokens",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "MISSED_RUNNER_AUTOPSY_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause the missed runner autopsy loop",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "META_REFRESH_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause meta dominance recomputation. Existing meta state stays current.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "WALLET_TRACKER_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause the owner observer wallet polling",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "PACKET_TTL_PAUSED": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Pause the packet TTL janitor that archives idle inbox packets",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "MCAP_FLOOR_USD": {
+      "value": 10000,
+      "default": 10000,
+      "code_default": 10000,
+      "expires_at": null,
+      "unit": "USD",
+      "description": "Sole filter for new bonded tokens. Below this, no packet is built.",
+      "tunable": true,
+      "type": "usd",
+      "min": 1000,
+      "max": 100000,
+      "history": []
+    },
+    "WATCHLIST_RUNNER_THRESHOLD": {
+      "value": 2.0,
+      "default": 2.0,
+      "code_default": 2.0,
+      "expires_at": null,
+      "unit": "x ratio",
+      "description": "Mcap multiplier from scan_mcap that triggers a runner_alert packet",
+      "tunable": true,
+      "type": "float",
+      "min": 1.5,
+      "max": 10.0,
+      "history": []
+    },
+    "TRENDING_HOLD_THRESHOLD_HOURS": {
+      "value": 8.0,
+      "default": 8.0,
+      "code_default": 8.0,
+      "expires_at": null,
+      "unit": "hours",
+      "description": "How long a token must stay in top 10 trending to qualify as a hold candidate",
+      "tunable": true,
+      "type": "float",
+      "min": 2.0,
+      "max": 48.0,
+      "history": []
+    },
+    "EDGE_LIQ_MIN_USD": {
+      "value": 8000,
+      "default": 20000,
+      "code_default": 20000,
+      "expires_at": null,
+      "unit": "USD",
+      "description": "SOFT / INFO ONLY — liquidity does NOT gate anything. A1 (2026-08-08) took liq off the hard-gate path after TOAD missed on a $1.4K shortfall and printed ~143x. This is the low edge of a legacy autopsy reference band, kept so historical comparisons line up. The ONLY hard pre-packet floor in this bot is MCAP_FLOOR_USD. Thin liquidity is an exit-physics question for the agent, not a veto.",
+      "tunable": true,
+      "type": "usd",
+      "min": 1000,
+      "max": 200000,
+      "history": [
+        {
+          "at": "2026-08-08T15:20:49-04:00",
+          "by": "agent_owner_greenlight_toad",
+          "from": 20000,
+          "to": 1000,
+          "reason": "TOAD 2026-08-08 neutralize EDGE_LIQ; sole hard floor MCAP_FLOOR 10k"
+        },
+        {
+          "at": "2026-08-08T15:23:29-04:00",
+          "by": "agent_owner",
+          "from": 1000,
+          "to": 8000,
+          "reason": "the owner: 1k too low, set EDGE_LIQ_MIN to 8k"
+        }
+      ]
+    },
+    "EDGE_LIQ_MAX_USD": {
+      "value": 1000000,
+      "default": 50000,
+      "code_default": 50000,
+      "expires_at": null,
+      "unit": "USD",
+      "description": "SOFT / INFO ONLY — the upper edge of the same legacy autopsy reference band. Does not gate. A token above this band is not 'too late' by rule — it is a different setup, and the agent grades it.",
+      "tunable": true,
+      "type": "usd",
+      "min": 20000,
+      "max": 1000000,
+      "history": [
+        {
+          "at": "2026-08-08T15:20:49-04:00",
+          "by": "agent_owner_greenlight_toad",
+          "from": 50000,
+          "to": 1000000,
+          "reason": "TOAD 2026-08-08 neutralize EDGE_LIQ; sole hard floor MCAP_FLOOR 10k"
+        }
+      ]
+    },
+    "EDGE_MCAP_MIN_USD": {
+      "value": 30000,
+      "default": 30000,
+      "code_default": 30000,
+      "expires_at": null,
+      "unit": "USD",
+      "description": "ADVISORY — does not drop the token. Minimum mcap stamped on the owner's edge filter",
+      "tunable": true,
+      "type": "usd",
+      "min": 5000,
+      "max": 200000,
+      "history": []
+    },
+    "EDGE_MCAP_MAX_USD": {
+      "value": 1000000,
+      "default": 1000000,
+      "code_default": 1000000,
+      "expires_at": null,
+      "unit": "USD",
+      "description": "ADVISORY — does not drop the token. Maximum mcap for the edge stamp. Above this is not an auto-skip.",
+      "tunable": true,
+      "type": "usd",
+      "min": 100000,
+      "max": 10000000,
+      "history": []
+    },
+    "EDGE_VOL_LIQ_RATIO_MIN": {
+      "value": 6.0,
+      "default": 6.0,
+      "code_default": 6.0,
+      "expires_at": null,
+      "unit": "ratio",
+      "description": "ADVISORY — does not drop the token. Minimum volume:liquidity ratio is a stamp. Below this is not a kill.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.0,
+      "max": 50.0,
+      "history": []
+    },
+    "BRAIN_NARRATIVE_ENABLED": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to call synthesize_narrative_intelligence on each packet. Disable to skip LLM narrative summary and save compute.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "BRAIN_PATTERN_LLM_ENABLED": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to call llm_name_novel_pattern when chart matches no known pattern. Disable to skip LLM pattern naming, fall back to heuristic only.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "BRAIN_VISION_ENABLED": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to run vision analysis on chart PNGs. Disable to skip vision compute on chart packets.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "CHART_BUILD_ENABLED": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to render chart PNGs at all. Disable to skip chart_request handling entirely.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "MEETING_POLL_INTERVAL_S": {
+      "value": 30,
+      "default": 30,
+      "code_default": 30,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "How often meeting_watcher_loop checks for new directives via file-presence poll (os.path.exists). The cheap part since no file = zero work. Lower = faster directive response, higher = lighter on the box.",
+      "tunable": true,
+      "type": "int",
+      "min": 10,
+      "max": 300,
+      "history": []
+    },
+    "MEETING_LOW_CONFIDENCE_THRESHOLD": {
+      "value": 0.5,
+      "default": 0.5,
+      "code_default": 0.5,
+      "expires_at": null,
+      "unit": "0-1",
+      "description": "Confidence floor for auto-applying a directive. Below this, status downgrades to clarification_needed and the owner is asked to rephrase.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.3,
+      "max": 0.95,
+      "history": []
+    },
+    "WALLET_FLOOR_SOL": {
+      "value": 0.05,
+      "default": 0.05,
+      "code_default": 0.05,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Wallet floor. Scanner/trending/watchlist/dex_paid/missed_runner LOOPS PAUSE when wallet ≤ this. Sells stay active. 0.05 SOL is enough to submit a sell tx. Raise if you want more buy-side headroom; lower at your own risk.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.01,
+      "max": 1.0,
+      "history": []
+    },
+    "HOLDERS_MIN_COUNT": {
+      "value": 50,
+      "default": 50,
+      "code_default": 50,
+      "expires_at": null,
+      "unit": "holders",
+      "description": "ADVISORY — does not drop the token. Minimum holder count surfaced for the agent; brand-new launches are not filtered out. real community. Set to 0 to disable.",
+      "tunable": true,
+      "type": "int",
+      "min": 0,
+      "max": 100000,
+      "history": []
+    },
+    "TOP10_MAX_PCT": {
+      "value": 50.0,
+      "default": 50.0,
+      "code_default": 50.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "ADVISORY — does not drop or block the packet. Top-10 concentration is flagged if top-10 own MORE than this % of supply. Lower is stricter on whale concentration; raise to 70+ to be permissive with fresh tokens.",
+      "tunable": true,
+      "type": "float",
+      "min": 10.0,
+      "max": 100.0,
+      "history": []
+    },
+    "DEV_MAX_HOLDING_PCT": {
+      "value": 15.0,
+      "default": 15.0,
+      "code_default": 15.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Maximum % of supply the deployer wallet can hold. The owner's edge: an outsized deployer holding is a frequent rug signal.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "history": []
+    },
+    "TIME_BONDED_MIN_MINUTES": {
+      "value": 5,
+      "default": 5,
+      "code_default": 5,
+      "expires_at": null,
+      "unit": "minutes",
+      "description": "ADVISORY — does not drop the token. Time since migration to a real DEX is stamped, not skipped. Reference for the insider-sniping launch chaos window. Set to 0 to disable.",
+      "tunable": true,
+      "type": "int",
+      "min": 0,
+      "max": 1440,
+      "history": []
+    },
+    "TIME_BONDED_MAX_MINUTES": {
+      "value": 4320,
+      "default": 4320,
+      "code_default": 4320,
+      "expires_at": null,
+      "unit": "minutes",
+      "description": "ADVISORY — does not drop the token. Maximum time since bonding, in minutes. Past the typical runner window is a stamp, not a skip. Raise toward 10080 (7d) for longer-tail plays.",
+      "tunable": true,
+      "type": "int",
+      "min": 60,
+      "max": 43200,
+      "history": []
+    },
+    "LP_LOCKED_MIN_PCT": {
+      "value": 0.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Minimum % of LP that must be locked per rugcheck. ADVISORY ONLY — the bonded dexId hardcoded floor is what enforces 'graduated to real DEX.' Set to 90 or 100 for strict; 0 = no filter.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "history": []
+    },
+    "VOL_LIQ_5M_MIN": {
+      "value": 0.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "ratio",
+      "description": "Minimum vol_5m / liq ratio. Useful for filtering on fresh activity right now. 0 = no filter; try 0.5+ for active-only.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "history": []
+    },
+    "VOL_LIQ_1H_MIN": {
+      "value": 1.0,
+      "default": 1.0,
+      "code_default": 1.0,
+      "expires_at": null,
+      "unit": "ratio",
+      "description": "Minimum vol_1h / liq ratio — wants some volume in the last hour. EDGE_VOL_LIQ_RATIO_MIN covers 24h; this covers the recent hour. 0 = no filter.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "history": []
+    },
+    "PRICE_CHANGE_5M_MIN": {
+      "value": -50.0,
+      "default": -50.0,
+      "code_default": -50.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Block tokens whose 5min price change is below this. Default -50% (filter out tokens crashing in real-time). Raise to 0 for 'only pumping' filter.",
+      "tunable": true,
+      "type": "float",
+      "min": -100.0,
+      "max": 100.0,
+      "history": []
+    },
+    "PRICE_CHANGE_24H_MIN": {
+      "value": -90.0,
+      "default": -90.0,
+      "code_default": -90.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Block tokens whose 24h price change is below this. Default -90% (filter out near-dead tokens). Raise for stronger momentum filter.",
+      "tunable": true,
+      "type": "float",
+      "min": -100.0,
+      "max": 1000.0,
+      "history": []
+    },
+    "TWITTER_FOLLOWERS_MIN": {
+      "value": 0,
+      "default": 0,
+      "code_default": 0,
+      "expires_at": null,
+      "unit": "followers",
+      "description": "Minimum X (Twitter) follower count on the token's official X account. 0 = no filter.",
+      "tunable": true,
+      "type": "int",
+      "min": 0,
+      "max": 1000000,
+      "history": []
+    },
+    "TELEGRAM_MEMBERS_MIN": {
+      "value": 0,
+      "default": 0,
+      "code_default": 0,
+      "expires_at": null,
+      "unit": "members",
+      "description": "Minimum Telegram member count for the token. 0 = no filter.",
+      "tunable": true,
+      "type": "int",
+      "min": 0,
+      "max": 1000000,
+      "history": []
+    },
+    "X_ACCOUNT_AGE_MIN_DAYS": {
+      "value": 0,
+      "default": 0,
+      "code_default": 0,
+      "expires_at": null,
+      "unit": "days",
+      "description": "Minimum age of the X account in days. 0 = no filter; set to 7+ to filter out 'freshly created' shill accounts.",
+      "tunable": true,
+      "type": "int",
+      "min": 0,
+      "max": 3650,
+      "history": []
+    },
+    "REQUIRE_META_ALIGNMENT": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "If True, skip tokens whose narrative is NOT aligned with the current dominant meta. Default False (off) — sniper still surfaces non-meta tokens.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "META_ALIGNMENT_WEIGHT": {
+      "value": 1.0,
+      "default": 1.0,
+      "code_default": 1.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Edge-score multiplier for meta-aligned tokens. 1.0 = no bonus; raise to 1.5+ to boost meta-aligned scores.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.0,
+      "max": 5.0,
+      "history": []
+    },
+    "WATCHLIST_RUNNER_TIER2_X": {
+      "value": 5.0,
+      "default": 5.0,
+      "code_default": 5.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Tier-2 runner alert threshold (more urgent). Mcap multiplier vs scan_mcap that triggers a tier-2 runner_alert.",
+      "tunable": true,
+      "type": "float",
+      "min": 2.0,
+      "max": 1000.0,
+      "history": []
+    },
+    "EDGE_PRICE_CHANGE_1H_MIN": {
+      "value": -15.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Edge filter minimum 1h price change. Tokens below this fail the price_change_1h_pos gate; at 0 that means negative 1h moves are excluded.",
+      "tunable": true,
+      "type": "float",
+      "min": -100.0,
+      "max": 100.0,
+      "history": [
+        {
+          "at": "2026-07-17T22:41:02-04:00",
+          "from": 0.0,
+          "to": -5.0,
+          "by": "agent",
+          "reason": "runner-vs-rug: price_change_1h_pos kills 100% real runners vs 50% rugs; allow mild -5% 1h retrace so runners clear edge; single-knob isolated window test"
+        },
+        {
+          "at": "2026-07-21T04:06:30-04:00",
+          "from": -5.0,
+          "to": -15.0,
+          "by": "agent",
+          "reason": "meeting no-op at -5; discovery still rejects 53% runners vs 44% rugs on price_change_1h_pos; one-knob relax to -15 for pullback entries"
+        }
+      ]
+    },
+    "DYNAMIC_SIZE_CAP_ENABLED": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "If True, position-size cap ratchets up with wallet growth (1→2→4→8→16 SOL). If False, cap freezes at SIZE_CAP_BASE_SOL.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": []
+    },
+    "SIZE_CAP_BASE_SOL": {
+      "value": 1.0,
+      "default": 1.0,
+      "code_default": 1.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Position-size cap when wallet = 1x anchor. Also the floor when DYNAMIC_SIZE_CAP_ENABLED=False.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.1,
+      "max": 100.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER1_SOL": {
+      "value": 2.0,
+      "default": 2.0,
+      "code_default": 2.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Tier-1 position-size cap (kicks in at SIZE_CAP_TIER1_MULTIPLIER × anchor).",
+      "tunable": true,
+      "type": "float",
+      "min": 0.1,
+      "max": 200.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER2_SOL": {
+      "value": 4.0,
+      "default": 4.0,
+      "code_default": 4.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Tier-2 position-size cap.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.1,
+      "max": 500.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER3_SOL": {
+      "value": 8.0,
+      "default": 8.0,
+      "code_default": 8.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Tier-3 position-size cap.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.1,
+      "max": 1000.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER4_SOL": {
+      "value": 16.0,
+      "default": 16.0,
+      "code_default": 16.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Tier-4 position-size cap (was implicit cap at tier-3 in v13.0).",
+      "tunable": true,
+      "type": "float",
+      "min": 0.1,
+      "max": 2000.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER1_MULTIPLIER": {
+      "value": 2.0,
+      "default": 2.0,
+      "code_default": 2.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Wallet multiplier vs anchor at which the tier-1 cap kicks in — once the wallet has grown by this factor, size caps step up.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.05,
+      "max": 100.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER2_MULTIPLIER": {
+      "value": 4.0,
+      "default": 4.0,
+      "code_default": 4.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Wallet multiplier vs anchor at which the tier-2 cap kicks in.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.05,
+      "max": 100.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER3_MULTIPLIER": {
+      "value": 8.0,
+      "default": 8.0,
+      "code_default": 8.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Wallet multiplier vs anchor at which the tier-3 cap kicks in.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.05,
+      "max": 200.0,
+      "history": []
+    },
+    "SIZE_CAP_TIER4_MULTIPLIER": {
+      "value": 16.0,
+      "default": 16.0,
+      "code_default": 16.0,
+      "expires_at": null,
+      "unit": "multiplier",
+      "description": "Wallet multiplier vs anchor at which the tier-4 cap kicks in.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.05,
+      "max": 500.0,
+      "history": []
+    },
+    "DEFAULT_MAX_HOLD_MINUTES": {
+      "value": 240,
+      "default": 240,
+      "code_default": 240,
+      "expires_at": null,
+      "unit": "minutes",
+      "description": "Default max-hold time for positions, in minutes, when a signal doesn't specify max_hold_hours. Hold-mode positions still override this with their own max_hold_hours param.",
+      "tunable": true,
+      "type": "int",
+      "min": 15,
+      "max": 10080,
+      "history": [
+        {
+          "changed_at": "2026-08-05T00:30:43.199477-04:00",
+          "from": 360,
+          "to": 240,
+          "change_type": "default_promotion",
+          "by": "agent",
+          "reason": "reconcile 360->240 (code const 2026-07-30; filter was still old)",
+          "default_from": 360,
+          "default_to": 240,
+          "code_default_from": 360,
+          "code_default_to": 240
+        }
+      ]
+    },
+    "DEFAULT_BREAKEVEN_MOVE_MINUTES": {
+      "value": 20,
+      "default": 20,
+      "code_default": 20,
+      "expires_at": null,
+      "unit": "minutes",
+      "description": "If a position hasn't moved at least ±2% from entry in this many minutes, suggest exit — 'dead in the water', no thesis activation. Set to 0 to disable.",
+      "tunable": true,
+      "type": "int",
+      "min": 5,
+      "max": 240,
+      "history": [
+        {
+          "changed_at": "2026-08-05T00:30:43.199477-04:00",
+          "from": 30,
+          "to": 20,
+          "change_type": "default_promotion",
+          "by": "agent",
+          "reason": "reconcile 30->20 (code const 2026-07-30; filter was still old)",
+          "default_from": 30,
+          "default_to": 20,
+          "code_default_from": 30,
+          "code_default_to": 20
+        }
+      ]
+    },
+    "DEFAULT_FLAT_PRICE_EXIT_MINUTES": {
+      "value": 15,
+      "default": 15,
+      "code_default": 15,
+      "expires_at": null,
+      "unit": "minutes",
+      "description": "Stricter flatness gate. If price stays within ±0.5% of entry for this many continuous minutes, suggest exit. Set to 0 to disable.",
+      "tunable": true,
+      "type": "int",
+      "min": 5,
+      "max": 120,
+      "history": []
+    },
+    "DEFAULT_DRAWDOWN_VELOCITY_EXIT_PCT_PER_MIN": {
+      "value": 3.0,
+      "default": 3.0,
+      "code_default": 3.0,
+      "expires_at": null,
+      "unit": "percent per minute",
+      "description": "Drawdown velocity panic-suggest exit. If a position is losing faster than this %/min over a 5min window, fire a panic_sell suggestion (the agent still decides).",
+      "tunable": true,
+      "type": "float",
+      "min": 0.5,
+      "max": 50.0,
+      "history": []
+    },
+    "RUG_COLLAPSE_PCT": {
+      "value": 90.0,
+      "default": 90.0,
+      "code_default": 90.0,
+      "expires_at": null,
+      "unit": "% off ATH",
+      "description": "A watched scanned coin that drops this % from its peak within 48h of scan gets fingerprinted as a rug (feeds archetype clustering). Dynamic so you can catch slow bleeds later, not just 90% one-clicks.",
+      "tunable": true,
+      "type": "float",
+      "min": 50.0,
+      "max": 95.0,
+      "history": [
+        {
+          "changed_at": "2026-06-02T17:17:30-04:00",
+          "from": null,
+          "to": 90.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "ARCHETYPE_MIN_CLUSTER": {
+      "value": 8,
+      "default": 8,
+      "code_default": 8,
+      "expires_at": null,
+      "unit": "fingerprints",
+      "description": "A fingerprint cluster must reach this many members before it surfaces as a named archetype review packet. Below this it clusters silently. Rug calls are heavier than chart-shape calls, so this sits above the pattern threshold of 3.",
+      "tunable": true,
+      "type": "int",
+      "min": 4,
+      "max": 30,
+      "history": [
+        {
+          "changed_at": "2026-06-02T17:17:30-04:00",
+          "from": null,
+          "to": 8,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SCAN_TICK_SECONDS": {
+      "value": 900,
+      "default": 900,
+      "code_default": 900,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "Main scanner interval — the ONE cadence the agent controls. No clock-based auto-slowdown; if the market is dead, the agent raises this.",
+      "tunable": true,
+      "type": "int",
+      "min": 60,
+      "max": 21600,
+      "history": [
+        {
+          "changed_at": "2026-06-09T09:32:08-04:00",
+          "from": null,
+          "to": 900,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "DEFAULT_TRAIL_DROP_PCT": {
+      "value": 12.0,
+      "default": 12.0,
+      "code_default": 12.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Flip-mode trailing stop giveback from peak PnL once trail is armed. Meeting-tunable so peak-green winners stop dying to wide givebacks. The live number is this knob's `value` — deliberately not repeated here. A caption that names a number goes stale the first time the number moves and then argues with the knob it describes (FIX 3, 2026-08-15). Change history lives in the knob's `history` array.",
+      "tunable": true,
+      "type": "float",
+      "min": 8.0,
+      "max": 40.0,
+      "history": [
+        {
+          "changed_at": "2026-07-24T00:15:23-04:00",
+          "from": null,
+          "to": 15.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        },
+        {
+          "changed_at": "2026-08-05T00:30:43.199477-04:00",
+          "from": 15.0,
+          "to": 12.0,
+          "change_type": "default_promotion",
+          "by": "agent",
+          "reason": "reconcile 15->12 (code const 2026-07-30; filter was still old so runtime overrode live intent)",
+          "default_from": 15.0,
+          "default_to": 12.0,
+          "code_default_from": 15.0,
+          "code_default_to": 12.0
+        }
+      ]
+    },
+    "DEFAULT_TRAIL_ACTIVATE_PCT": {
+      "value": 20.0,
+      "default": 20.0,
+      "code_default": 20.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Flip-mode PnL % at which the trailing stop arms. The live number is this knob's value; change history lives in the knob's `history` array.",
+      "tunable": true,
+      "type": "float",
+      "min": 10.0,
+      "max": 200.0,
+      "history": [
+        {
+          "changed_at": "2026-07-24T00:15:23-04:00",
+          "from": null,
+          "to": 25.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        },
+        {
+          "changed_at": "2026-08-05T00:30:43.199477-04:00",
+          "from": 25.0,
+          "to": 20.0,
+          "change_type": "default_promotion",
+          "by": "agent",
+          "reason": "reconcile 25->20 (code const 2026-07-30; filter was still old)",
+          "default_from": 25.0,
+          "default_to": 20.0,
+          "code_default_from": 25.0,
+          "code_default_to": 20.0
+        }
+      ]
+    },
+    "DEFAULT_HOLD_TRAIL_DROP_PCT": {
+      "value": 28.0,
+      "default": 28.0,
+      "code_default": 28.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Hold-mode trailing stop giveback from peak. Keep wider than flip.",
+      "tunable": true,
+      "type": "float",
+      "min": 10.0,
+      "max": 50.0,
+      "history": [
+        {
+          "changed_at": "2026-07-24T00:15:23-04:00",
+          "from": null,
+          "to": 28.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "DEFAULT_HOLD_TRAIL_ACTIVATE_PCT": {
+      "value": 80.0,
+      "default": 80.0,
+      "code_default": 80.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Hold-mode PnL % that arms the trailing stop — wait for a real move.",
+      "tunable": true,
+      "type": "float",
+      "min": 25.0,
+      "max": 500.0,
+      "history": [
+        {
+          "changed_at": "2026-07-24T00:15:23-04:00",
+          "from": null,
+          "to": 80.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "REDUCED_THROUGHPUT_MULT": {
+      "value": 3.0,
+      "default": 3.0,
+      "code_default": 3.0,
+      "expires_at": null,
+      "unit": "x",
+      "description": "Multiplier applied to SCAN_TICK_SECONDS while reduced_mode is active (the bot's own trip contract). reduced_mode is the safety net; the agent's SCAN_TICK_SECONDS meeting is the primary quieting tool on multi-day junk.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.0,
+      "max": 12.0,
+      "history": [
+        {
+          "changed_at": "2026-07-31T13:29:17-04:00",
+          "from": null,
+          "to": 3.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_MAX_RED_HOLD_H": {
+      "value": 0,
+      "default": 0,
+      "code_default": 0,
+      "expires_at": null,
+      "unit": "hours",
+      "description": "Max hours a RED bag (price below entry) may be held before a review card goes to the agent's inbox (once per 6h per bag) and the dashboard flags it RED>max. 0 = off. Never sells: no auto-sell on this path; the agent decides.",
+      "tunable": true,
+      "type": "float",
+      "min": 0,
+      "max": 720,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_BUY_SIZE_SOL": {
+      "value": 0.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "SOL",
+      "description": "Owner base buy size. >0 replaces SIZE_CAP_BASE_SOL as the base entry cap, scales the tier ladder down to match, and is used when a buy signal has no amount_sol. 0 = unset.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 0.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_DEFAULT_SL_PCT": {
+      "value": 20.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Default stop-loss armed on a new position when the buy signal sets none. 0 = unset.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 95.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 0.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        },
+        {
+          "changed_at": "2026-10-16T18:37:31-04:00",
+          "from": 0.0,
+          "to": 20.0,
+          "change_type": "value_update",
+          "by": "owner_env",
+          "reason": "bots/.env SNIPER_DEFAULT_SL_PCT=20"
+        }
+      ]
+    },
+    "SNIPER_DEFAULT_TP_PCT": {
+      "value": 0.0,
+      "default": 0.0,
+      "code_default": 0.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Default take-profit armed on a new position when the buy signal sets none. 0 = unset.",
+      "tunable": true,
+      "type": "float",
+      "min": 0.0,
+      "max": 10000.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 0.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        },
+        {
+          "changed_at": "2026-10-16T18:37:31-04:00",
+          "from": 0.0,
+          "to": 0.0,
+          "change_type": "value_update",
+          "by": "owner_env",
+          "reason": "bots/.env SNIPER_DEFAULT_TP_PCT=0"
+        }
+      ]
+    },
+    "SNIPER_LEARNING_MODE": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Learning mode: start conservative and adjust buy size / SL / TP in small bounded steps from closed-trade results (paper or live). Off keeps the learned values.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": false,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_LEARN_REST": {
+      "value": true,
+      "default": true,
+      "code_default": true,
+      "expires_at": null,
+      "unit": null,
+      "description": "Learning mode scope ('let the system learn the rest'): also invite the agent to tune the other filters from the same results, through the tune-response path.",
+      "tunable": true,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": true,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_LEARN_COOLDOWN_H": {
+      "value": 24.0,
+      "default": 24.0,
+      "code_default": 24.0,
+      "expires_at": null,
+      "unit": "hours",
+      "description": "Rest between learning adjustments.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.0,
+      "max": 720.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 24.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_LEARN_MIN_TRADES": {
+      "value": 10.0,
+      "default": 10.0,
+      "code_default": 10.0,
+      "expires_at": null,
+      "unit": "trades",
+      "description": "Closed trades needed since the last adjustment before learning changes anything.",
+      "tunable": true,
+      "type": "float",
+      "min": 3.0,
+      "max": 500.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 10.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    },
+    "SNIPER_LEARN_STEP_PCT": {
+      "value": 10.0,
+      "default": 10.0,
+      "code_default": 10.0,
+      "expires_at": null,
+      "unit": "percent",
+      "description": "Largest relative change learning makes to one value in one step.",
+      "tunable": true,
+      "type": "float",
+      "min": 1.0,
+      "max": 25.0,
+      "history": [
+        {
+          "changed_at": "2026-10-14T22:11:05-04:00",
+          "from": null,
+          "to": 10.0,
+          "change_type": "first_boot_add",
+          "by": "bootstrap",
+          "reason": "knob added to TUNABLE_PARAMS in newer code version"
+        }
+      ]
+    }
+  },
+  "_retired": {
+    "SCAN_TICK_ACTIVE_SECONDS": {
+      "value": 900,
+      "default": 900,
+      "code_default": 900,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "Main scanner interval during the owner's active hours (5am-6pm EST weekdays)",
+      "tunable": false,
+      "type": "int",
+      "min": 60,
+      "max": 14400,
+      "history": [],
+      "retired_at": "2026-07-27T09:58:44-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    },
+    "SCAN_TICK_OFFHOURS_SECONDS": {
+      "value": 3600,
+      "default": 3600,
+      "code_default": 3600,
+      "expires_at": null,
+      "unit": "seconds",
+      "description": "Main scanner interval during off-hours and weekends",
+      "tunable": false,
+      "type": "int",
+      "min": 300,
+      "max": 21600,
+      "history": [],
+      "retired_at": "2026-07-27T09:58:44-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    },
+    "TELEGRAM_ON_SCAN_RESULTS": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to send a telegram for scan cycle results. Default off to avoid spam.",
+      "tunable": false,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [],
+      "retired_at": "2026-08-16T12:54:25-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    },
+    "TELEGRAM_ON_CHART_BUILD": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to send a telegram each time a chart is rendered. Default off.",
+      "tunable": false,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [],
+      "retired_at": "2026-08-16T12:54:25-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    },
+    "TELEGRAM_ON_AUTOPSY": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to send a telegram when an autopsy report is generated. Default off (silent post-trade).",
+      "tunable": false,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [],
+      "retired_at": "2026-08-16T12:54:25-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    },
+    "TELEGRAM_ON_HEARTBEAT": {
+      "value": false,
+      "default": false,
+      "code_default": false,
+      "expires_at": null,
+      "unit": null,
+      "description": "Whether to send a telegram on each heartbeat write. Default off (would spam every 5min).",
+      "tunable": false,
+      "type": "bool",
+      "min": null,
+      "max": null,
+      "history": [],
+      "retired_at": "2026-08-16T12:54:25-04:00",
+      "retired_reason": "no longer in TUNABLE_PARAMS (code removed the knob)"
+    }
+  }
+}

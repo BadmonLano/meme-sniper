@@ -1,0 +1,36 @@
+# Timeline
+
+Version history, newest first.
+
+## v14.3 (2026-10-14): public release
+- Self-contained repo: no references to anything outside it.
+- Pipes to external services (market-regime feed, deep/social research) are now off by default behind `PIPE_FLOW_ENABLED` / `PIPE_RESEARCH_ENABLED`.
+- Scrollable console screens; README, SETUP, skills index, license, contributing and security docs.
+
+## v14.2 (2026-10-14)
+- Unified ranking for KOLs, devs and wallets, scored on token outcome.
+- Fixed the KOL lookup, shiller tracking and the wallet tracker's owner check.
+
+## v14.1 (2026-10-14)
+- One positions digest per inbox check; batch stop-loss/take-profit replies.
+- Per-bag sensor alerts folded into the digest; module header slimmed (notes moved here).
+
+## v14.0 (2026-10-14)
+- Agent-armed stop-loss / take-profit on every position; 15s position checks.
+- Free-RPC-first routing with paid fallback; Helius credit meter + optional daily cap; PumpPortal launch feed.
+- Forensics fixes: late/vibes flags, impossible-runner filter, duplicate-card collapse, autopsy hold time, wallet zero-read guard, panic fee cap.
+
+## v13.x (2026-08-06 to 2026-10-14)
+- RPC failover with cooldown; wallet reads never treated as zero on RPC failure; signature cache; observers pause while RPC is down; key redaction; watchlist prune fix; discovery moved to Grok. Skill consolidated into one current ruleset with scoreboard-based exits.
+- Named dip-buy zones (2026-10-05).
+- Hold floor ratchet; Grok cooldown; dead auto-buy relay and dead pipes removed; filter file consolidated (2026-08-10 to 08-16).
+- Edge v2 entry maps and catalyst clock; potential-watch tier; treasury mark-to-market alerts (2026-08-06 to 08-08).
+
+## v13.0 to v13.2
+- Phase-1 foundation: execution ledger, wallet PnL tracker, ledger-sweep math rebuild, time-decay exits.
+
+## v12.x (2026-07-23 to 2026-07-30)
+- Flip defaults tightened (trail 12/20, max hold 4h, breakeven 20m); timed-out sells tracked as pending.
+- Executable-quote exits (mark vs real fill); never book -100% from a missing price; failed sells logged as failures; old knobs and dead scan cadences retired.
+- Treasury funding loop (sell_holding); forced exits skip preflight; send-path RPC fallback; no stacked sells while one is in flight.
+- Trail giveback made tunable; archetype validation; ignored-runner re-fire watch.

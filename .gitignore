@@ -1,0 +1,79 @@
+# secrets / local config
+.env
+bots/.env
+*.env
+!.env.example
+!bots/.env.example
+setup.json
+bots/setup.json
+
+# runtime data (folders ship empty with .gitkeep)
+bot_logs/*
+inbox/*
+inbox_results/*
+json_relay/*
+owner_inbox/*
+owner_inbox_archive/
+rules/*
+learnings/*
+!*/.gitkeep
+!learnings/README.md
+!learnings/LEARNINGS.template.md
+!learnings/nightly_self_eval.automation.md
+!rules/rules.example.md
+!bot_logs/kol_list.json
+!bot_logs/gork_standard.json
+!bot_logs/archetype_roster.json
+!bot_logs/capital_floor.json
+!bot_logs/launch_rail_config.json
+bots/bot_logs/
+
+# browser / scraper profiles
+bots/scraper_profile/
+scraper_profile/
+x_profiles/
+**/browser_profile*/
+**/playwright*/
+
+# python / caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# runtime outputs (engine self-heal / signals / paper)
+bots/signal_contracts/
+*.last-good
+*.bak
+*.bak_*
+paper/
+**/paper/
+
+# local backups (never ship)
+backups/
+**/backups/
+
+# sub-bot state written next to the code
+bots/tuner/*.bak
+# agent-generated lore skills for a custom hold benchmark stay local; gork-lore and the template ship
+skills/*-lore/
+!skills/gork-lore/
+
+# GitHub sign-in + helper runtime (never ship)
+**/github_auth.*
+bot_logs/github_auth.*
+bots/bot_logs/github_auth.*
+bot_logs/repo_review/
+bot_logs/repo_uploads/
+repo_drops/
+!bot_logs/sniper_github_config.json

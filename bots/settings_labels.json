@@ -1,0 +1,1156 @@
+{
+  "_about": "Display map for the Settings screen and the wizard: plain-English label, section and unit per key. Keys and files are unchanged; edits still accept plain numbers. Filter-knob units come from the unit field the engine writes into bots/tuner/meme_sniper_filter.json; env units from how the code parses each key.",
+  "sections": [
+    "Modes",
+    "Wallet",
+    "RPC",
+    "Brains",
+    "Sizing",
+    "Entry filters",
+    "Exits & trailing",
+    "Scanners & monitors",
+    "Pauses",
+    "Launch",
+    "Owner positions",
+    "Alerts",
+    "X",
+    "Data APIs",
+    "Console alerts"
+  ],
+  "keys": {
+    "TRENDING_TICK_ACTIVE_SECONDS": {
+      "label": "Trending scan interval, active hours",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "TRENDING_TICK_OFFHOURS_SECONDS": {
+      "label": "Trending scan interval, off-hours",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "WATCHLIST_RECHECK_S": {
+      "label": "Watchlist recheck interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "DEX_PAID_WATCH_TICK_S": {
+      "label": "Dex-paid recheck interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "META_REFRESH_INTERVAL_S": {
+      "label": "Meta refresh interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "MISSED_RUNNER_AUTOPSY_TICK_S": {
+      "label": "Missed-runner autopsy interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "SCANNER_PAUSED": {
+      "label": "Pause main scanner",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "TRENDING_PAUSED": {
+      "label": "Pause trending scanner",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "WATCHLIST_RECHECK_PAUSED": {
+      "label": "Pause watchlist rechecks",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "DEX_PAID_MONITOR_PAUSED": {
+      "label": "Pause dex-paid monitor",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "MISSED_RUNNER_AUTOPSY_PAUSED": {
+      "label": "Pause missed-runner autopsy",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "META_REFRESH_PAUSED": {
+      "label": "Pause meta refresh",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "WALLET_TRACKER_PAUSED": {
+      "label": "Pause owner wallet tracker",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "PACKET_TTL_PAUSED": {
+      "label": "Pause inbox packet janitor",
+      "section": "Pauses",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "MCAP_FLOOR_USD": {
+      "label": "Market cap floor for new tokens",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "filter"
+    },
+    "WATCHLIST_RUNNER_THRESHOLD": {
+      "label": "Runner alert multiple (tier 1)",
+      "section": "Entry filters",
+      "unit": "×",
+      "src": "filter"
+    },
+    "TRENDING_HOLD_THRESHOLD_HOURS": {
+      "label": "Time in top-10 trending for a hold candidate",
+      "section": "Entry filters",
+      "unit": "h",
+      "src": "filter"
+    },
+    "EDGE_LIQ_MIN_USD": {
+      "label": "Liquidity reference minimum (info only)",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "filter"
+    },
+    "EDGE_LIQ_MAX_USD": {
+      "label": "Liquidity reference maximum (info only)",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "filter"
+    },
+    "EDGE_MCAP_MIN_USD": {
+      "label": "Edge market cap minimum (advisory)",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "filter"
+    },
+    "EDGE_MCAP_MAX_USD": {
+      "label": "Edge market cap maximum (advisory)",
+      "section": "Entry filters",
+      "unit": "USD",
+      "src": "filter"
+    },
+    "EDGE_VOL_LIQ_RATIO_MIN": {
+      "label": "Edge volume / liquidity minimum (advisory)",
+      "section": "Entry filters",
+      "unit": "ratio",
+      "src": "filter"
+    },
+    "BRAIN_NARRATIVE_ENABLED": {
+      "label": "Narrative reads",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "BRAIN_PATTERN_LLM_ENABLED": {
+      "label": "Name new chart patterns with the LLM",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "BRAIN_VISION_ENABLED": {
+      "label": "Chart vision reads",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "CHART_BUILD_ENABLED": {
+      "label": "Render chart images",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "MEETING_POLL_INTERVAL_S": {
+      "label": "Meeting directive poll interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "MEETING_LOW_CONFIDENCE_THRESHOLD": {
+      "label": "Meeting directive confidence floor",
+      "section": "Brains",
+      "unit": "0-1",
+      "src": "filter"
+    },
+    "WALLET_FLOOR_SOL": {
+      "label": "Wallet floor (loops pause below)",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "HOLDERS_MIN_COUNT": {
+      "label": "Holder count minimum (advisory)",
+      "section": "Entry filters",
+      "unit": "holders",
+      "src": "filter"
+    },
+    "TOP10_MAX_PCT": {
+      "label": "Top-10 holder share maximum (advisory)",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "DEV_MAX_HOLDING_PCT": {
+      "label": "Deployer holding maximum",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "TIME_BONDED_MIN_MINUTES": {
+      "label": "Time since bonding minimum (advisory)",
+      "section": "Entry filters",
+      "unit": "min",
+      "src": "filter"
+    },
+    "TIME_BONDED_MAX_MINUTES": {
+      "label": "Time since bonding maximum (advisory)",
+      "section": "Entry filters",
+      "unit": "min",
+      "src": "filter"
+    },
+    "LP_LOCKED_MIN_PCT": {
+      "label": "LP locked minimum (advisory)",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "VOL_LIQ_5M_MIN": {
+      "label": "5m volume / liquidity minimum",
+      "section": "Entry filters",
+      "unit": "ratio",
+      "src": "filter"
+    },
+    "VOL_LIQ_1H_MIN": {
+      "label": "1h volume / liquidity minimum",
+      "section": "Entry filters",
+      "unit": "ratio",
+      "src": "filter"
+    },
+    "PRICE_CHANGE_5M_MIN": {
+      "label": "5m price change minimum",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "PRICE_CHANGE_24H_MIN": {
+      "label": "24h price change minimum",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "TWITTER_FOLLOWERS_MIN": {
+      "label": "X followers minimum",
+      "section": "Entry filters",
+      "unit": "followers",
+      "src": "filter"
+    },
+    "TELEGRAM_MEMBERS_MIN": {
+      "label": "Telegram members minimum",
+      "section": "Entry filters",
+      "unit": "members",
+      "src": "filter"
+    },
+    "X_ACCOUNT_AGE_MIN_DAYS": {
+      "label": "X account age minimum",
+      "section": "Entry filters",
+      "unit": "days",
+      "src": "filter"
+    },
+    "REQUIRE_META_ALIGNMENT": {
+      "label": "Require meta alignment",
+      "section": "Entry filters",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "META_ALIGNMENT_WEIGHT": {
+      "label": "Meta-aligned edge bonus",
+      "section": "Entry filters",
+      "unit": "×",
+      "src": "filter"
+    },
+    "WATCHLIST_RUNNER_TIER2_X": {
+      "label": "Runner alert multiple (tier 2)",
+      "section": "Entry filters",
+      "unit": "×",
+      "src": "filter"
+    },
+    "EDGE_PRICE_CHANGE_1H_MIN": {
+      "label": "1h price change minimum",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "filter"
+    },
+    "DYNAMIC_SIZE_CAP_ENABLED": {
+      "label": "Grow size cap with the wallet",
+      "section": "Sizing",
+      "unit": "bool",
+      "src": "filter"
+    },
+    "SIZE_CAP_BASE_SOL": {
+      "label": "Size cap, base",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER1_SOL": {
+      "label": "Size cap, tier 1",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER2_SOL": {
+      "label": "Size cap, tier 2",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER3_SOL": {
+      "label": "Size cap, tier 3",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER4_SOL": {
+      "label": "Size cap, tier 4",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER1_MULTIPLIER": {
+      "label": "Wallet growth for tier 1",
+      "section": "Sizing",
+      "unit": "×",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER2_MULTIPLIER": {
+      "label": "Wallet growth for tier 2",
+      "section": "Sizing",
+      "unit": "×",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER3_MULTIPLIER": {
+      "label": "Wallet growth for tier 3",
+      "section": "Sizing",
+      "unit": "×",
+      "src": "filter"
+    },
+    "SIZE_CAP_TIER4_MULTIPLIER": {
+      "label": "Wallet growth for tier 4",
+      "section": "Sizing",
+      "unit": "×",
+      "src": "filter"
+    },
+    "DEFAULT_MAX_HOLD_MINUTES": {
+      "label": "Maximum hold time",
+      "section": "Exits & trailing",
+      "unit": "min",
+      "src": "filter"
+    },
+    "DEFAULT_BREAKEVEN_MOVE_MINUTES": {
+      "label": "No-move exit after",
+      "section": "Exits & trailing",
+      "unit": "min",
+      "src": "filter"
+    },
+    "DEFAULT_FLAT_PRICE_EXIT_MINUTES": {
+      "label": "Flat-price exit after",
+      "section": "Exits & trailing",
+      "unit": "min",
+      "src": "filter"
+    },
+    "DEFAULT_DRAWDOWN_VELOCITY_EXIT_PCT_PER_MIN": {
+      "label": "Fast drawdown exit speed",
+      "section": "Exits & trailing",
+      "unit": "%/min",
+      "src": "filter"
+    },
+    "RUG_COLLAPSE_PCT": {
+      "label": "Rug collapse drop from peak",
+      "section": "Entry filters",
+      "unit": "% off ATH",
+      "src": "filter"
+    },
+    "ARCHETYPE_MIN_CLUSTER": {
+      "label": "Archetype cluster minimum size",
+      "section": "Entry filters",
+      "unit": "fingerprints",
+      "src": "filter"
+    },
+    "SCAN_TICK_SECONDS": {
+      "label": "Main scan interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "filter"
+    },
+    "DEFAULT_TRAIL_DROP_PCT": {
+      "label": "Flip trailing stop giveback",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "filter"
+    },
+    "DEFAULT_TRAIL_ACTIVATE_PCT": {
+      "label": "Flip trailing stop arms at",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "filter"
+    },
+    "DEFAULT_HOLD_TRAIL_DROP_PCT": {
+      "label": "Hold trailing stop giveback",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "filter"
+    },
+    "DEFAULT_HOLD_TRAIL_ACTIVATE_PCT": {
+      "label": "Hold trailing stop arms at",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "filter"
+    },
+    "REDUCED_THROUGHPUT_MULT": {
+      "label": "Scan interval multiplier in reduced mode",
+      "section": "Scanners & monitors",
+      "unit": "×",
+      "src": "filter"
+    },
+    "HOT_WALLET_PRIVATE_KEY": {
+      "label": "Trading wallet key",
+      "section": "Wallet",
+      "unit": "secret",
+      "src": "env"
+    },
+    "HOT_WALLET_ADDRESS": {
+      "label": "Trading wallet address",
+      "section": "Wallet",
+      "unit": "text",
+      "src": "env"
+    },
+    "LEDGER_ADDRESS": {
+      "label": "Cold wallet for profit sweeps",
+      "section": "Wallet",
+      "unit": "text",
+      "src": "env"
+    },
+    "LEDGER_FUNDING_SOURCES": {
+      "label": "Deposit-only funding wallets",
+      "section": "Wallet",
+      "unit": "list",
+      "src": "env"
+    },
+    "OWNER_WALLET_ADDRESS": {
+      "label": "Owner wallet address",
+      "section": "Wallet",
+      "unit": "text",
+      "src": "env"
+    },
+    "LAUNCH_WALLET_PRIVATE_KEY": {
+      "label": "Launch wallet key",
+      "section": "Wallet",
+      "unit": "secret",
+      "src": "env"
+    },
+    "RPC_URL": {
+      "label": "Solana RPC",
+      "section": "RPC",
+      "unit": "secret",
+      "src": "env"
+    },
+    "HELIUS_API_KEY": {
+      "label": "Helius API key",
+      "section": "RPC",
+      "unit": "secret",
+      "src": "env"
+    },
+    "HELIUS_DAILY_CREDIT_CAP": {
+      "label": "Helius plan / daily credit cap",
+      "section": "RPC",
+      "unit": "credits/day",
+      "src": "env"
+    },
+    "RPC_URL_FALLBACK": {
+      "label": "Fallback RPC",
+      "section": "RPC",
+      "unit": "secret",
+      "src": "env"
+    },
+    "LLM_MAIN": {
+      "label": "Main brain",
+      "section": "Brains",
+      "unit": "choice",
+      "src": "env"
+    },
+    "LLM_FALLBACK": {
+      "label": "Fallback brain",
+      "section": "Brains",
+      "unit": "choice",
+      "src": "env"
+    },
+    "LLM_PROVIDER_ORDER": {
+      "label": "Brain order (legacy)",
+      "section": "Brains",
+      "unit": "list",
+      "src": "env"
+    },
+    "VISION_PROVIDER_ORDER": {
+      "label": "Vision brain order (legacy)",
+      "section": "Brains",
+      "unit": "list",
+      "src": "env"
+    },
+    "GROK_API_KEY": {
+      "label": "Grok API key",
+      "section": "Brains",
+      "unit": "secret",
+      "src": "env"
+    },
+    "GROK_TEXT_MODEL": {
+      "label": "Grok text model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OLLAMA_ENABLED": {
+      "label": "Local Ollama",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "env"
+    },
+    "OLLAMA_MODEL": {
+      "label": "Ollama text model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OLLAMA_VISION_MODEL": {
+      "label": "Ollama vision model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OLLAMA_CLOUD_ENABLED": {
+      "label": "Ollama cloud (opt-in)",
+      "section": "Brains",
+      "unit": "bool",
+      "src": "env"
+    },
+    "OLLAMA_CLOUD_API_KEY": {
+      "label": "Ollama cloud key",
+      "section": "Brains",
+      "unit": "secret",
+      "src": "env"
+    },
+    "OLLAMA_CLOUD_MODEL": {
+      "label": "Ollama cloud model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OPENAI_API_KEY": {
+      "label": "OpenAI key",
+      "section": "Brains",
+      "unit": "secret",
+      "src": "env"
+    },
+    "OPENAI_MODEL": {
+      "label": "OpenAI model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OPENAI_VISION_MODEL": {
+      "label": "OpenAI vision model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "ANTHROPIC_API_KEY": {
+      "label": "Anthropic key",
+      "section": "Brains",
+      "unit": "secret",
+      "src": "env"
+    },
+    "ANTHROPIC_MODEL": {
+      "label": "Claude model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "ANTHROPIC_VISION_MODEL": {
+      "label": "Claude vision model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OPENAI_COMPAT_BASE_URL": {
+      "label": "OpenAI-compatible endpoint",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OPENAI_COMPAT_API_KEY": {
+      "label": "OpenAI-compatible key",
+      "section": "Brains",
+      "unit": "secret",
+      "src": "env"
+    },
+    "OPENAI_COMPAT_MODEL": {
+      "label": "OpenAI-compatible model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "OPENAI_COMPAT_VISION_MODEL": {
+      "label": "OpenAI-compatible vision model",
+      "section": "Brains",
+      "unit": "text",
+      "src": "env"
+    },
+    "LAUNCH_RAIL_ENABLED": {
+      "label": "Launch rail",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "LAUNCH_RAIL_LIVE": {
+      "label": "Live on-chain launches",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "LAUNCH_MAX_DEV_BUY_SOL": {
+      "label": "Max dev buy per launch",
+      "section": "Launch",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "PINATA_JWT": {
+      "label": "Pinata upload token",
+      "section": "Launch",
+      "unit": "secret",
+      "src": "env"
+    },
+    "LAUNCH_RAIL_NO_UPLOAD": {
+      "label": "Skip metadata upload (testing)",
+      "section": "Launch",
+      "unit": "bool",
+      "src": "env"
+    },
+    "LAUNCH_ENV_FILE": {
+      "label": "Launch env file",
+      "section": "Launch",
+      "unit": "text",
+      "src": "env"
+    },
+    "GITHUB_TOKEN": {
+      "label": "GitHub token",
+      "section": "Launch",
+      "unit": "secret",
+      "src": "env"
+    },
+    "OWN_LAUNCH_MODE": {
+      "label": "Own-launch mode (hold / flip)",
+      "section": "Launch",
+      "unit": "choice",
+      "src": "env"
+    },
+    "OWN_LAUNCH_TP_LADDER": {
+      "label": "Own-launch take-profit ladder (multiple:%)",
+      "section": "Launch",
+      "unit": "list",
+      "src": "env"
+    },
+    "OWN_LAUNCH_SL_PCT": {
+      "label": "Own-launch stop-loss",
+      "section": "Launch",
+      "unit": "%",
+      "src": "env"
+    },
+    "OWN_LAUNCH_TREASURY_PCT": {
+      "label": "Own-launch treasury (never sold)",
+      "section": "Launch",
+      "unit": "%",
+      "src": "env"
+    },
+    "OWN_LAUNCH_LOCK_MODE": {
+      "label": "Own-launch lock mode",
+      "section": "Launch",
+      "unit": "choice",
+      "src": "env"
+    },
+    "OWN_LAUNCH_BURN_PCT": {
+      "label": "Own-launch dev bag burn",
+      "section": "Launch",
+      "unit": "%",
+      "src": "env"
+    },
+    "OWN_LAUNCH_FEE_CLAIM_H": {
+      "label": "Creator fee claim interval",
+      "section": "Launch",
+      "unit": "h",
+      "src": "env"
+    },
+    "OWN_LAUNCH_CHECK_S": {
+      "label": "Own-launch check interval",
+      "section": "Launch",
+      "unit": "s",
+      "src": "env"
+    },
+    "OWN_LAUNCH_CARD_INBOX_H": {
+      "label": "Own-launch card interval",
+      "section": "Launch",
+      "unit": "h",
+      "src": "env"
+    },
+    "TELEGRAM_TOKEN": {
+      "label": "Telegram Bot Token",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "TELEGRAM_CHAT_ID": {
+      "label": "Telegram Chat ID",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "X_NOTIFY_TELEGRAM_TOKEN": {
+      "label": "Telegram Backup Alert Bot Token",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "X_BEARER_TOKEN": {
+      "label": "X API bearer token",
+      "section": "X",
+      "unit": "secret",
+      "src": "env"
+    },
+    "X_CLIENT_ID": {
+      "label": "X app client ID",
+      "section": "X",
+      "unit": "secret",
+      "src": "env"
+    },
+    "X_CLIENT_SECRET": {
+      "label": "X app client secret",
+      "section": "X",
+      "unit": "secret",
+      "src": "env"
+    },
+    "X_USER_ID": {
+      "label": "X user ID",
+      "section": "X",
+      "unit": "text",
+      "src": "env"
+    },
+    "X_INTEL_TOKEN": {
+      "label": "X intel token",
+      "section": "X",
+      "unit": "secret",
+      "src": "env"
+    },
+    "X_INTEL_REFRESH_TOKEN": {
+      "label": "X intel refresh token",
+      "section": "X",
+      "unit": "secret",
+      "src": "env"
+    },
+    "BROWSER_USER_DATA_DIR": {
+      "label": "Other Chrome profile for X (opt-in)",
+      "section": "X",
+      "unit": "text",
+      "src": "env"
+    },
+    "BROWSER_PROFILE_NAME": {
+      "label": "Chrome sub-profile name",
+      "section": "X",
+      "unit": "text",
+      "src": "env"
+    },
+    "X_VERIFY_MAX_AGE_H": {
+      "label": "X session counts as verified for",
+      "section": "X",
+      "unit": "h",
+      "src": "env"
+    },
+    "JUPITER_API_KEY": {
+      "label": "Jupiter API key",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "BIRDEYE_API_KEY": {
+      "label": "Birdeye API key",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "COINCOMMS_API_KEY": {
+      "label": "CoinComms API key",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "COINCOMMS_SERVER_KEY": {
+      "label": "CoinComms server key",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "COINCOMMS_SERVER_SECRET": {
+      "label": "CoinComms server secret",
+      "section": "Data APIs",
+      "unit": "secret",
+      "src": "env"
+    },
+    "PIPE_FLOW_ENABLED": {
+      "label": "Flow pipe",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "PIPE_RESEARCH_ENABLED": {
+      "label": "Research pipe",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_BUY_SIZE_SOL": {
+      "label": "Base buy size",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "SNIPER_DEFAULT_SL_PCT": {
+      "label": "Default stop-loss",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "SNIPER_DEFAULT_TP_PCT": {
+      "label": "Default take-profit",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "SNIPER_PAPER_MODE": {
+      "label": "Paper mode (simulated)",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_LEARNING_MODE": {
+      "label": "Learning mode",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_LEARN_REST": {
+      "label": "Learning also tunes other filters",
+      "section": "Modes",
+      "unit": "bool",
+      "src": "env"
+    },
+    "SNIPER_LEARN_COOLDOWN_H": {
+      "label": "Learning step cooldown",
+      "section": "Modes",
+      "unit": "h",
+      "src": "env"
+    },
+    "SNIPER_LEARN_MIN_TRADES": {
+      "label": "Closed trades per learning step",
+      "section": "Modes",
+      "unit": "trades",
+      "src": "env"
+    },
+    "SNIPER_LEARN_STEP_PCT": {
+      "label": "Learning step size",
+      "section": "Modes",
+      "unit": "%",
+      "src": "env"
+    },
+    "SNIPER_PAPER_START_SOL": {
+      "label": "Paper wallet start balance",
+      "section": "Modes",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "SNIPER_PAPER_SLIPPAGE_PCT": {
+      "label": "Paper slippage",
+      "section": "Modes",
+      "unit": "%",
+      "src": "env"
+    },
+    "ALERT_SOUND": {
+      "label": "Alert sound",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "ALERT_TOAST": {
+      "label": "Desktop notifications",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "ALERT_GOAL_HIT": {
+      "label": "Alert on profit goal",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "ALERT_SL_TP": {
+      "label": "Alert on stop-loss / take-profit",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "ALERT_WARDEN": {
+      "label": "Alert on warden cards",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "MUTED": {
+      "label": "Mute all alerts",
+      "section": "Console alerts",
+      "unit": "bool",
+      "src": "ui"
+    },
+    "SNIPER_MAX_RED_HOLD_H": {
+      "label": "Review a losing bag after",
+      "section": "Exits & trailing",
+      "unit": "h",
+      "src": "filter"
+    },
+    "ALERT_CHANNELS": {
+      "label": "Alert Channels",
+      "section": "Alerts",
+      "unit": "list",
+      "src": "env"
+    },
+    "DISCORD_WEBHOOK_URL": {
+      "label": "Discord Webhook URL",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "SMTP_HOST": {
+      "label": "SMTP Host",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "SMTP_PORT": {
+      "label": "SMTP Port",
+      "section": "Alerts",
+      "unit": "port",
+      "src": "env"
+    },
+    "SMTP_USER": {
+      "label": "SMTP Username",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "SMTP_PASS": {
+      "label": "SMTP Password",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "SMTP_FROM": {
+      "label": "Email From Address",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "ALERT_EMAIL_TO": {
+      "label": "Email To Address",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "SMTP_STARTTLS": {
+      "label": "SMTP STARTTLS",
+      "section": "Alerts",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "ALERT_EMAIL_MIN_INTERVAL_S": {
+      "label": "Email Minimum Interval",
+      "section": "Alerts",
+      "unit": "s",
+      "src": "env"
+    },
+    "NTFY_URL": {
+      "label": "Ntfy Server URL",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "NTFY_TOPIC": {
+      "label": "Ntfy Topic",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "NTFY_TOKEN": {
+      "label": "Ntfy Access Token",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "AGENT_SELF_PATCH": {
+      "label": "Agent Self-Patch",
+      "section": "Modes",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "BRAND_CANON_HYSTERESIS": {
+      "label": "Canonical Clone Hysteresis",
+      "section": "Scanners & monitors",
+      "unit": "points",
+      "src": "env"
+    },
+    "BRAND_CANON_STICKY_H": {
+      "label": "Canonical Clone Hold Time",
+      "section": "Scanners & monitors",
+      "unit": "h",
+      "src": "env"
+    },
+    "CLONE_CLUSTER_WINDOW_S": {
+      "label": "Clone Cluster Window",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "POST_CLOSE_WATCH_H": {
+      "label": "Post-Close Watch Length",
+      "section": "Scanners & monitors",
+      "unit": "h",
+      "src": "env"
+    },
+    "SOLD_TOO_EARLY_PCT": {
+      "label": "Sold Too Early Threshold",
+      "section": "Scanners & monitors",
+      "unit": "%",
+      "src": "env"
+    },
+    "SOLD_TOO_EARLY_WINDOW_H": {
+      "label": "Sold Too Early Window",
+      "section": "Scanners & monitors",
+      "unit": "h",
+      "src": "env"
+    },
+    "MISSED_RUNNER_REPORT_COOLDOWN_S": {
+      "label": "Missed Runner Report Cooldown",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "OBSERVER_FAST_TICK_S": {
+      "label": "Observer Fast Check Interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "OBSERVER_FAST_WINDOW_H": {
+      "label": "Observer Fast Check Window",
+      "section": "Scanners & monitors",
+      "unit": "h",
+      "src": "env"
+    },
+    "OBSERVER_SLOW_TICK_S": {
+      "label": "Observer Slow Check Interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "OWNER_COMMANDS": {
+      "label": "Owner Commands",
+      "section": "Alerts",
+      "unit": "choice",
+      "src": "env"
+    },
+    "OWNER_COMMANDS_TG_TOKEN": {
+      "label": "Owner Commands Bot Token",
+      "section": "Alerts",
+      "unit": "secret",
+      "src": "env"
+    },
+    "OWNER_COMMANDS_TG_CHAT_ID": {
+      "label": "Owner Commands Chat ID",
+      "section": "Alerts",
+      "unit": "text",
+      "src": "env"
+    },
+    "OWNER_ROAST_COOLDOWN_S": {
+      "label": "Owner Roast Cooldown",
+      "section": "Alerts",
+      "unit": "s",
+      "src": "env"
+    },
+    "OWNER_POS_ENABLED": {
+      "label": "Ask before managing a bag the bot did not buy",
+      "section": "Owner positions",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "OWNER_POS_TIMEOUT_MIN": {
+      "label": "Owner position answer window, then auto-manage",
+      "section": "Owner positions",
+      "unit": "min",
+      "src": "env"
+    },
+    "OWNER_POS_MIN_USD": {
+      "label": "Smallest owner bag to ask about",
+      "section": "Owner positions",
+      "unit": "USD",
+      "src": "env"
+    },
+    "OWNER_POS_TIME_EXIT": {
+      "label": "Time exit on taken-over owner bags",
+      "section": "Owner positions",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "OWNER_POS_SCAN_MIN": {
+      "label": "Owner bag check interval",
+      "section": "Owner positions",
+      "unit": "min",
+      "src": "env"
+    },
+    "CLONE_RUNNER_ENABLED": {
+      "label": "Clone runner cards",
+      "section": "Clone runner",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "RUNNER_VOL_RATIO": {
+      "label": "Runner volume vs canonical",
+      "section": "Clone runner",
+      "unit": "x",
+      "src": "env"
+    },
+    "RUNNER_SUSTAIN_MIN": {
+      "label": "Runner sustain time",
+      "section": "Clone runner",
+      "unit": "min",
+      "src": "env"
+    }
+  }
+}

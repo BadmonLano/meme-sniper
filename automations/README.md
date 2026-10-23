@@ -1,0 +1,9 @@
+# Automations
+
+Five recurring jobs for your agent: four paste-ready lane prompts here, one per inbox lane, plus the nightly self-eval at [`../learnings/nightly_self_eval.automation.md`](../learnings/nightly_self_eval.automation.md). The lanes: **sniper_lane** drains `meme_sniper - ` packets (buy / pass decisions, set_protection SL/TP after every buy and on every position check, no auto-sell), **warden_lane** drains `security_warden - ` packets (wallet and outside-setup transactions first, sniper-watch pings, integrity, medic; never restarts anything), **morning_brief** reads logs and done packets and sends one brief through owner-ping using the morning-brief skill, and **misc_lane** drains everything else and routes it by botname to the matching skill (x, code-monitor, autoagent, ca-intel; launch_rail decided by the agent, live only when the setup config arms it). None of them carry a schedule: pick your own cadence. Replace `{AGENT_NAME}` with your agent's name. Every lane appends one line per run to `bot_logs/inbox_cron_audit.log`, all in the same format. `bots/tools/lane_run.py` lists a lane, stamps `actions_taken` inside each packet, moves it, and writes that line in one step (`--positions` prints the open book; missing or `{}` = flat).
+
+Owner commands (`/roast`, `/recap`, `/autopsy [ticker|last]`) are not a lane: `bots/sub-bots/owner_commands.py` answers them itself (modes `off`, `file`, `telegram`; replies in `inbox_results/owner_replies/`). A lane may serve a file-mode request but never drains `owner_commands/`. See SETUP.md section 6.5.
+
+## Placeholders
+
+Before pasting a prompt, replace `{AGENT_NAME}` with your agent's name and `{USER}` with the owner's name (how you address them). Set the same names as `AGENT_NAME` and `OWNER_NAME` in `bots/.env`: `learnings_writer` fills both into `learnings/LEARNINGS.md` when it creates it from the template.

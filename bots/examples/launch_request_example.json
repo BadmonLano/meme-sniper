@@ -1,0 +1,17 @@
+{
+  "id": "example-001",
+  "action": "launch",
+  "repo_url": "https://github.com/your-org/your-repo",
+  "name": "Example Project",
+  "ticker": "EXMPL",
+  "description": "Example launch request for the Sniper launch rail.",
+  "image": "examples/placeholder_logo.png",
+  "website": "",
+  "twitter": "",
+  "telegram": "",
+  "dev_buy_sol": 0.01,
+  "slippage": 10,
+  "priority_fee": 0.0005,
+  "dry_run": false,
+  "requested_by": "agent"
+}
