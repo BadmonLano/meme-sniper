@@ -19,11 +19,11 @@ The skills are the agent's playbook. The bots produce data and packets; the skil
 | `sub-skills/morning-brief` | the daily brief to the owner |
 | `sub-skills/learnings-summarizer` | the nightly learnings distill |
 | `gork-lore` | $GORK, its CAs or community come up, copycat checks, or a hold scored against the default benchmark |
-| `_templates/token-lore` | template only: the agent copies it to `skills/<ticker>-lore/` when the owner sets a custom hold benchmark (local, git-ignored) |
+| `../templates/token-lore` | template only: the agent copies it to `skills/<ticker>-lore/` when the owner sets a custom hold benchmark (local, git-ignored) |
 
 Before acting on any trade, also read `rules/rules.md` (the owner's rules; they override skill defaults but never the hard safety gates).
 
-All of these show in the console under **6 Console → 4 Skills** (including `gork-lore` and `_templates`).
+All of these show in the console under **6 Console → 4 Skills** (including `gork-lore`; the token-lore template is in `templates/token-lore/`, outside `skills/`).
 
 `automations/` has one prompt per inbox lane and says which skill each lane uses.
 

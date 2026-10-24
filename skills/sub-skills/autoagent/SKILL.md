@@ -1,13 +1,8 @@
 ---
-
 name: autoagent
-
 version: v14.3
-
 description: |
-
   the agent's self-improvement + self-management skill. Four parts:
-
   PART 1 - OVERSEER RESPONSE: how the agent reads + processes the
   overseer_report packet. The overseer (agent_autoagent.py) writes a single
   coherent roast per packet, with **Grok (xAI) as primary judge** (choose your model; recommended: grok-4.7) (runs in
@@ -33,19 +28,12 @@ description: |
   health and code_tuner proposals. Triggered by "audit the ecosystem", "how healthy are we", "check
   should we tweak", "full ecosystem status", or any time something feels off
   and the agent wants the full picture himself.
-
 allowed-tools:
-
   - Read
-
   - Write
-
   - Edit
-
   - Bash
-
   - WebFetch
-
 ---
 > **Fleet stamp:** Judge is Grok (recommended: grok-4.7). Fallback is your local Ollama model (recommended: qwen3:14b-q4_K_M) on the same prompt (not a shorter one). Loaded on the overseer packet, not Tier 1 always-on. Clock 2:00 ET nightly. Not a skill editor. Not the April approval loop. Does not read skill_requests.json.
 

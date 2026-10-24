@@ -2958,7 +2958,7 @@ def _ui_tunables(con) -> None:
 
 
 # -- skills ---------------------------------------------------------------------
-_UI_SKILL_DIRS = ("meme-hunter", "ca-intel", "forensics", "sub-skills", "gork-lore", "_templates")   # v1.0.1: lore + templates shown too
+_UI_SKILL_DIRS = ("meme-hunter", "ca-intel", "forensics", "sub-skills", "gork-lore")   # v1.0.1: lore shown too (token-lore template moved to templates/token-lore, outside skills/)
 
 
 def _ui_skill_files() -> list:

@@ -24,6 +24,7 @@ Sniper can be run by Grok Bot, Muse, or an agent from any of the larger SI compa
 - [GitHub basics (new to GitHub? start here)](#github-basics-new-to-github-start-here)
 - [What's in this folder](#whats-in-this-folder)
 - [Quick start](#quick-start)
+- [Install as plugin](#install-as-plugin)
 - [Windows, Mac and Linux](#windows-mac-and-linux)
 - [GitHub sign-in setup](#github-sign-in-setup)
 - [Messaging / notifications setup](#messaging--notifications-setup)
@@ -176,11 +177,39 @@ Quick checks: `python bots/sniper.py --smoke`, `python bots/sniper.py --ui-smoke
 
 Launcher (`python bots/sniper.py`): **1** Start Sniper (+ console), **2** Setup wizard, **3** Sign in to X, **4** Live dashboard, **5** Launch a token, **6** Console only, **7** Exit.
 
-Console (opens with 1 or 6): **1** Live dashboard, **2** Logs, **3** Settings, **4** Skills, **5** Launch a token, **6** Sign in to X, **7** Quit UI (engine keeps trading), **8** Stop Sniper. Skills are under **6 Console → 4 Skills** (all skill folders, including `gork-lore` and `_templates`).
+Console (opens with 1 or 6): **1** Live dashboard, **2** Logs, **3** Settings, **4** Skills, **5** Launch a token, **6** Sign in to X, **7** Quit UI (engine keeps trading), **8** Stop Sniper. Skills are under **6 Console → 4 Skills** (all skill folders, including `gork-lore`). The token-lore template lives in `templates/token-lore/`, outside `skills/`, so plugin loaders don't pick it up as a skill.
 
 ### What the setup wizard asks
 
 Wallet (key, address, optional cold wallet), RPC (URL, Helius key, Helius plan), the brain (main + fallback and their keys/models), alert channels, owner commands, Pinata, X token, trading values (buy size, default SL/TP, dev-buy cap, own-launch mode and treasury %), **Safety caps** (daily loss stop 0.5 SOL, daily buy cap 10, same-token cooldown 72h, loss-streak pause 3, max open positions 3, trading hours blank = always, timezone America/New_York), and modes (**launch rail on/off, default off**, launch live on-chain default no, paper, learning). Enter takes the default shown. Answers go to `bots/.env`, each comment on its own line. `SNIPER_WIZARD_SAFETY=0` hides the Safety caps questions.
+
+## Install as plugin
+
+Meme Sniper ships as a plugin: 11 agent skills (meme-hunter, ca-intel, forensics, gork-lore and the sub-skills) plus this repo's bots. The manifest is in `.cursor-plugin/plugin.json` (Cursor) and `.grok-plugin/plugin.json` (Grok Bot); both list the same skills.
+
+- **Cursor:** once listed, open **Customize** in the sidebar, find **meme-sniper**, then **Install** (project or user scope). To try it before then, clone this repo into `~/.cursor/plugins/local/meme-sniper`, run **Developer: Reload Window**, and check under **Customize** that the skills show up.
+- **Grok Bot or any other SI agent:** clone the repo and point your agent at `SETUP.md`. It loads the skills from `skills/` and sets up the inbox checks in `automations/`.
+
+The skills tell your agent how to run the bots. The bots themselves still run on your machine: follow [Quick start](#quick-start) for the install, then test them as shown below.
+
+### Test it safely (paper first, then one small live buy)
+
+1. **Env setup:** copy `bots/.env.example` to `bots/.env`. Never commit `bots/.env` (it's git-ignored) and never paste its keys into chat.
+2. **RPC and a test wallet:** set `RPC_URL` (or `HELIUS_API_KEY`). Make a **new burner wallet** just for testing, fund it with a small amount of SOL, and put it in `HOT_WALLET_PRIVATE_KEY` / `HOT_WALLET_ADDRESS`. Never use your main wallet. Start with `SNIPER_PAPER_MODE=1`, keep the safety caps at their defaults, and set a tiny `OWNER_MAX_BUY_SOL`.
+3. **Smoke check:** `python bots/sniper.py --smoke`, then `python bots/sniper.py` → **2 Setup wizard** → **1 Start Sniper**.
+4. **Rug-check a token:** ask your agent to vet a contract address (ca-intel skill), or write it to `json_relay/ca_research_request.json` yourself:
+   ```json
+   {"requests": [{"request_id": "test_vet_1", "ca": "<MINT_ADDRESS>", "intent": "research"}]}
+   ```
+   The verdict lands in `json_relay/ca_research_response.json` and as a `ca_intel` packet in `inbox/`.
+5. **Small test buy:** in paper mode, have your agent send a buy, or add one to `json_relay/agent_signals.json`:
+   ```json
+   {"signals": [{"signal_id": "test_buy_1", "action": "buy", "mint": "<MINT_ADDRESS>", "amount_sol": 0.01,
+     "params": {"stop_loss_pct": 30, "tp_targets_pct": [50]}, "mode": "flip", "reasoning": "plugin test"}]}
+   ```
+   Once paper looks right, set `SNIPER_PAPER_MODE=0` and repeat with the smallest size you're OK losing.
+6. **Confirm stop/target armed and confirm/fail:** every signal gets an answer that echoes your id as `request_id`. Look for a `signal_ack_*` / `trade_confirmation_*` packet in `inbox/` (or a `signal_failure_*` with the reason), plus the row in `bot_logs/signals_response_history.jsonl`. Then open the console (**1 Live dashboard**) and check that the position shows its stop loss and take profit armed. If your agent sends `set_protection_batch`, that gets its own confirm or fail too.
+7. **Clean up:** sell the test bag (`"action": "sell"`) or let the stop or target close it. Then move the handled packets to `inbox_results/done/`.
 
 ## Windows, Mac and Linux
 

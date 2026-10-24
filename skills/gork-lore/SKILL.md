@@ -7,7 +7,7 @@ description: |
   Load it when $GORK, its second CA, the prophet @gork on X or the @gork_og channel comes
   up, when a CA claims gork lineage (copycat check), or when scoring a hold against the
   benchmark. It is also the reference structure for a custom token lore skill
-  (skills/_templates/token-lore/SKILL.md).
+  (templates/token-lore/SKILL.md).
 ---
 
 # gork-lore
@@ -18,7 +18,7 @@ The grounding skill for everything gork. The fam runs on lore: copycats die beca
 
 > **$GORK is an example benchmark.** It ships as the default so the hold score works out of the box. Replace it with your own token any time (meme-hunter "Set a custom hold benchmark"); nothing here is a recommendation to buy $GORK.
 
-$GORK is the 10/10 ceiling the Gork Standard hold score was written from (meme-hunter "The Gork Standard: hold strength"). This skill is the lore behind that benchmark: what the holders believe, how they behaved through drawdowns, and which CAs are canon. When the owner picks a different benchmark token, the agent builds a lore skill for it with the same structure from `skills/_templates/token-lore/SKILL.md` (procedure: meme-hunter "Set a custom hold benchmark"). Unset = this skill and $GORK.
+$GORK is the 10/10 ceiling the Gork Standard hold score was written from (meme-hunter "The Gork Standard: hold strength"). This skill is the lore behind that benchmark: what the holders believe, how they behaved through drawdowns, and which CAs are canon. When the owner picks a different benchmark token, the agent builds a lore skill for it with the same structure from `templates/token-lore/SKILL.md` (procedure: meme-hunter "Set a custom hold benchmark"). Unset = this skill and $GORK.
 
 ## Glossary — terms used everywhere in this skill
 

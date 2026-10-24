@@ -63,7 +63,7 @@ bots/tuner/*.bak
 # live filter copy (seeded from meme_sniper_filter.default.json on first run)
 bots/tuner/meme_sniper_filter.json
 bots/tuner/tune history/
-# agent-generated lore skills for a custom hold benchmark stay local; gork-lore and the template ship
+# agent-generated lore skills for a custom hold benchmark stay local; gork-lore ships; the template lives in templates/token-lore/
 skills/*-lore/
 !skills/gork-lore/
 

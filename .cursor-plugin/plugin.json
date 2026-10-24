@@ -1,0 +1,33 @@
+{
+  "name": "meme-sniper",
+  "version": "1.0.2",
+  "description": "Open-source Solana meme-token trading bot run by your SI agent. Rug checks, daily loss and buy caps, auto stop loss and take profit, paper mode, and a gated launch rail, with inbox prompts so Grok Bot, Muse or any SI agent can read cards and act.",
+  "author": {
+    "name": "Bentayga Empire LLC",
+    "url": "https://github.com/BadmonLano"
+  },
+  "homepage": "https://github.com/BadmonLano/meme-sniper",
+  "repository": "https://github.com/BadmonLano/meme-sniper",
+  "license": "MIT",
+  "keywords": [
+    "meme sniper",
+    "meme-sniper",
+    "solana meme sniper",
+    "solana trading bot",
+    "pump.fun sniper"
+  ],
+  "logo": "assets/meme_sniper_logo_square.png",
+  "skills": [
+    "skills/meme-hunter",
+    "skills/ca-intel",
+    "skills/forensics",
+    "skills/gork-lore",
+    "skills/sub-skills/autoagent",
+    "skills/sub-skills/code-monitor",
+    "skills/sub-skills/learnings-summarizer",
+    "skills/sub-skills/morning-brief",
+    "skills/sub-skills/owner-ping",
+    "skills/sub-skills/warden",
+    "skills/sub-skills/x"
+  ]
+}
