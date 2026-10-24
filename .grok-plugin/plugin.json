@@ -1,6 +1,6 @@
 {
   "name": "meme-sniper",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Open-source Solana meme-token trading bot run by your SI agent. Rug checks, daily loss and buy caps, auto stop loss and take profit, paper mode, and a gated launch rail, with inbox prompts so Grok Bot, Muse or any SI agent can read cards and act.",
   "author": {
     "name": "Bentayga Empire LLC",

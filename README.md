@@ -323,9 +323,26 @@ When it's a vault: the vault is left out of top-10 math (`float_top10_pct` on th
 
 Turn it off with `VAULT_EXCEPTION=false`. If any data is missing (RPC down, pump.fun API down), the check fails and the normal rules apply.
 
+## Celebrity-post rule (v1.0.4)
+
+When a verified X account with a big following (`CELEB_MIN_FOLLOWERS`, 250k) posts a pump.fun CA, an agent or X Intel can send a buy signal with `celeb_post: {handle, followers, verified, post_id, posted_ts}`. Sniper then:
+- **Skips the coin** if the creator was funded before launch by a wallet that paid several wallets in one transaction (`CELEB_FANOUT_MIN`, 3), or if the same cluster launched another coin within `CELEB_CLUSTER_WINDOW_H` (24h).
+- **Waits** until the creator has fully sold (under `CELEB_CREATOR_MAX_PCT`, 1%).
+- **Enters** at a fixed `CELEB_ENTRY_SOL` (0.1). Exits: half off at 3x, the rest on a 35% trail, -25% stop.
+- If any data is missing, it doesn't enter. Turn it off with `CELEB_POST_RULE=false`.
+
+FLOYD (Oct 13) would have been skipped on both checks: its creator was funded by a fan-out wallet and also launched $MONEY.
+
+## Scale-in, trail, exit logging, watchdog (v1.0.4)
+
+- **Scale-in:** a normal buy goes in at `SCALE_IN_FIRST_SOL` (0.05) first. After `SCALE_IN_ADD_AFTER_S` (300s) Sniper adds the rest, but only if the position is still open, liquidity is at least `SCALE_IN_LIQ_KEEP_PCT` (80%) of what it was at entry, and price is no more than `SCALE_IN_MAX_DRAWDOWN_PCT` (15%) below entry. The planned total still has to clear the 0.1 SOL floor. Vault and celeb entries are never split. Off: `SCALE_IN=false`.
+- **Trail:** it arms at +20% (`DEFAULT_TRAIL_ACTIVATE_PCT`) and exits after giving back `TRAIL_GIVEBACK_PTS` (15) points of PnL (peak +40% -> exit at +25%). Set it to 0 to go back to the old % trail. Vault and celeb positions keep their 35% trail.
+- **Exit logging:** the ledger and the autopsy now use one resolver for exit type, and the monitor's last trigger fills it in, so "manual" and "unknown_exit" stop showing up for monitored exits. The post-exit peak is matched by exit tx or a lone row within 6h, and the same numbers now go into the ledger as a `post_exit` row.
+- **Watchdog:** if the position monitor's heartbeat is older than `WATCHDOG_STALE_S` (300s) while positions are open, you get an alert through your alerts channel. It repeats every `WATCHDOG_REALERT_S` (30 min) and sends a "recovered" note when the monitor comes back. It runs inside the bot, and you can also run `python bots/sub-bots/monitor_watchdog.py` separately to catch a dead process. Off: `MONITOR_WATCHDOG=false`.
+
 ## Versions and releases
 
-- Versions look like `v1.0.3` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Versions look like `v1.0.4` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.

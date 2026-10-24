@@ -26013,6 +26013,29 @@ async def own_launch_fee_claim_loop() -> None:
         await asyncio.sleep(1800)
 
 
+async def _scale_in_add_leg(mint: str, ticker: str, add_sol: float, sig: dict,
+                            pending_param_requests: dict) -> None:
+    """v1.0.4: after SCALE_IN_ADD_AFTER_S, add the rest only if the pool is intact."""
+    try:
+        import scale_in as _si
+        await asyncio.sleep(float(os.environ.get("SCALE_IN_ADD_AFTER_S") or 300))
+        pos = load_positions().get(mint)
+        _p = await fetch_token_data(mint)
+        liq = _safe_num(((_p or {}).get("liquidity") or {}).get("usd"))
+        px = _safe_num((_p or {}).get("priceUsd"))
+        ok, why = _si.add_ok(pos, liq, px)
+        exec_log("scale_in_add" if ok else "scale_in_skip", ticker=ticker, mint=mint,
+                 amount_sol=add_sol if ok else 0, detail=why)
+        if not ok:
+            _log(f"exec: scale-in add skipped {ticker}: {why}", prefix="exec")
+            return
+        leg = {**sig, "amount_sol": add_sol, "_scale_in_leg": "add",
+               "signal_id": f"{sig.get('signal_id', 'sig')}_add"}
+        await execute_buy_signal(leg, pending_param_requests)
+    except Exception as e:
+        _log(f"exec: scale-in add err {ticker}: {type(e).__name__}", prefix="exec")
+
+
 @_meme_inflight
 async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
     """Execute a buy signal. Validates cap + drawdown + cooldown first."""
@@ -26040,6 +26063,34 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
         await write_signal_response(sig_id, "rejected", error="own_launch: never buy our own token")
         return
 
+    # v1.0.4 celebrity-post rule: verified/large account posted the CA.
+    if sig.get("celeb_post") and not sig.get("_scale_in_leg"):
+        try:
+            import celeb_post as _cp
+            _cr = sig.get("deployer") or sig.get("creator") or await _identify_deployer(mint)
+            _lts = None
+            try:
+                _ms = await helius_rpc("getSignaturesForAddress", [mint, {"limit": 1000}])
+                if isinstance(_ms, list) and 0 < len(_ms) < 1000:
+                    _lts = min(int(x.get("blockTime") or 1e12) for x in _ms if isinstance(x, dict))
+            except Exception:
+                _lts = None
+            _facts = await _cp.gather_facts(mint, _cr, _lts, helius_rpc)
+            _cv = _cp.evaluate(sig.get("celeb_post"), _facts)
+        except Exception as _cpe:
+            _cv = {"enter": False, "reason": f"fail-safe: celeb check error {type(_cpe).__name__}"}
+        if not _cv.get("enter"):
+            await write_signal_response(sig_id, "rejected", error=f"celeb_post: {_cv.get('reason')}")
+            _log(f"exec: celeb_post {ticker} not entered: {_cv.get('reason')}", prefix="exec")
+            return
+        amount_sol = _cp.entry_size_sol()
+        params = _cp.exit_params(params)
+        params["celeb_post"] = {"handle": (sig.get("celeb_post") or {}).get("handle"),
+                                "post_id": (sig.get("celeb_post") or {}).get("post_id")}
+        params["trail_mode"] = "pct"
+        sig["params"], sig["amount_sol"] = params, amount_sol
+        _log(f"exec: celeb_post {ticker} ENTER {amount_sol} SOL: {_cv.get('reason')}", prefix="exec")
+
     try:
         _buy_soft_warnings(sig)
     except Exception as _bw:
@@ -26063,6 +26114,7 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
             amount_sol = min(amount_sol, _fv.entry_size_sol()) if amount_sol > 0 else _fv.entry_size_sol()
             amount_sol = max(amount_sol, _fv.entry_size_sol())
             params = _fv.exit_params(params)
+            params["trail_mode"] = "pct"
             params["fee_vault"] = {"wallet": _vv["vault_wallet"],
                                    "outgoing_at_entry": int(_vv.get("outgoing_at_entry") or 0)}
             sig["params"] = params
@@ -26095,6 +26147,21 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
     #
     # Either a setup is worth 0.1 SOL or it isn't worth taking. There is no third option.
     MIN_BUY_SOL = float(get_override_sync("MIN_BUY_SOL", 0.1))
+    # v1.0.4 scale-in: 0.05 first leg, add later if the pool holds. The planned
+    # total must still clear the floor; only the legs themselves go under it.
+    _si_plan = None
+    try:
+        import scale_in as _si
+        if amount_sol >= MIN_BUY_SOL:
+            _si_plan = _si.plan(amount_sol, sig)
+    except Exception:
+        _si_plan = None
+    if _si_plan:
+        amount_sol = _si_plan["first"]
+        sig["amount_sol"] = amount_sol
+        _log(f"exec: scale-in {ticker}: first {_si_plan['first']} SOL, add {_si_plan['add']} SOL later", prefix="exec")
+    if _si_plan or sig.get("_scale_in_leg") == "add":
+        MIN_BUY_SOL = min(MIN_BUY_SOL, amount_sol)
     if amount_sol < MIN_BUY_SOL:
         await write_signal_response(
             sig_id, "rejected",
@@ -26667,7 +26734,16 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
              f"${float(position.get('mcap_at_buy') or 0):,.0f} "
              f"({position.get('lots_count')} lots)", prefix="exec")
 
+    if _si_plan:
+        try:
+            position["scale_in"] = {"planned_add_sol": _si_plan["add"],
+                                    "liq_at_entry": float(((pre_buy_pair or {}).get("liquidity") or {}).get("usd") or 0) or None,
+                                    "add_due_ts": _now_ts() + float(os.environ.get("SCALE_IN_ADD_AFTER_S") or 300)}
+        except Exception:
+            position["scale_in"] = {"planned_add_sol": _si_plan["add"], "liq_at_entry": None}
     upsert_position(mint, position)
+    if _si_plan:
+        asyncio.create_task(_scale_in_add_leg(mint, ticker, _si_plan["add"], sig, pending_param_requests))
     
     # THE EXECUTION LEDGER — every buy, logged (Sprint 54)
     try:
@@ -27098,8 +27174,8 @@ async def execute_sell_signal(sig: dict) -> None:
         exec_log("sell" if amount_pct >= 100 else "partial_sell",
                  ticker=ticker, mint=mint,
                  amount_sol=round(sol_received, 6), price=sell_price,
-                 detail=(f"{amount_pct}% | "
-                         f"{position.get('exit_reason') or swap_result.get('trigger') or 'manual'}"),
+                 detail=(f"{amount_pct}% | {__import__('exit_log').resolve_exit_type(position, swap_result)}"),
+                 exit_type=__import__('exit_log').resolve_exit_type(position, swap_result),
                  tx=swap_result.get("tx_signature"),
                  pnl_sol=pnl_sol, pnl_pct=pnl_pct)
     except Exception:
@@ -30274,6 +30350,12 @@ def _panic_fee_cap(lamports: int) -> int:
     return int(min(lamports, cap)) if cap and cap > 0 else int(lamports)
 
 
+async def _monitor_watchdog_loop() -> None:
+    """v1.0.4: alert the owner if the position monitor goes stale with open bags."""
+    from monitor_watchdog import watchdog_loop
+    await watchdog_loop(_BOT_LOGS)
+
+
 async def position_monitor_loop() -> None:
     """
     Per open position: price/dev/liq checks, exit conditions.
@@ -30625,7 +30707,19 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
     if _tr_floor > trail_drop:
         trail_drop = _tr_floor
         position["higher_cap_trail_floor"] = _tr_floor
-    if peak_pnl >= trail_activate:
+    # v1.0.4: default positions trail on PnL points given back (TRAIL_GIVEBACK_PTS, 15)
+    # once armed at +trail_activate (20). Fixed-rule entries (vault/celeb) keep % trail.
+    _gb_pts = float(os.environ.get("TRAIL_GIVEBACK_PTS") or 15)
+    _use_pts = _gb_pts > 0 and (params or {}).get("trail_mode") != "pct"
+    if peak_pnl >= trail_activate and _use_pts:
+        position["trail_armed"] = True
+        if peak_pnl - pnl_pct >= _gb_pts:
+            exit_trigger = {
+                "type": "trail_drop",
+                "details": f"Peak +{peak_pnl:.1f}%, now {pnl_pct:+.1f}% (gave back {peak_pnl - pnl_pct:.1f} pts, trigger {_gb_pts:.0f})",
+                "severity": "critical",
+            }
+    elif peak_pnl >= trail_activate:
         position["trail_armed"] = True
         if drawdown_from_peak >= trail_drop:
             exit_trigger = {
@@ -31000,6 +31094,7 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
     # If no trigger, no packet
     if not exit_trigger:
         return
+    position["last_monitor_trigger"] = exit_trigger.get("type")   # v1.0.4 exit-type fill
 
     # v14.1: The agent already armed both levels and none has fired, so a sensor
     # alert does not need its own card or reply. It rides the positions digest.
@@ -32187,12 +32282,8 @@ async def queue_autopsy(mint: str, position: dict, exit_price: float, pnl_pct: f
         except Exception as e:
             _log(f"hold close-out err: {e}", prefix="hold")
 
-    _exit_trig = (
-        (position or {}).get("exit_reason")
-        or (swap_result or {}).get("trigger")
-        or (swap_result or {}).get("exit_trigger")
-        or None
-    )
+    import exit_log as _xl
+    _exit_trig = _xl.resolve_exit_type(position, swap_result)
     queue.setdefault("queue", []).append({
         "queued_at": _now_iso(),
         "mint": mint,
@@ -32756,12 +32847,8 @@ async def process_autopsy_item(item: dict) -> None:
         outcome = "scratch"
     
     # Real trigger from queue. never forge exit_signal_response.
-    exit_type = (
-        item.get("exit_trigger")
-        or item.get("exit_type")
-        or (position.get("exit_reason") if isinstance(position, dict) else None)
-        or "unknown_exit"
-    )
+    import exit_log as _xl
+    exit_type = _xl.resolve_exit_type(position if isinstance(position, dict) else {}, None, item)
     if _failed_exit:
         exit_type = "sell_failed"
     
@@ -38953,19 +39040,10 @@ def _post_close_apply(w: dict) -> bool:
                                     default=[], alert_on_stale=False)
     if not isinstance(rows, list):
         return False
-    ets = float(w.get("exit_ts") or 0)
-    best, bd = None, 1e18
-    for r in rows:
-        if not isinstance(r, dict) or r.get("mint") != w.get("mint"):
-            continue
-        t = r.get("exit_at") or r.get("closed_at") or r.get("timestamp")
-        try:
-            d = abs(_tune_iso_to_ts(t) - ets) if t else 1e17
-        except Exception:
-            d = 1e17
-        if d < bd:
-            best, bd = r, d
-    if best is None or bd > 1800:
+    import exit_log as _xl
+    best = _xl.pick_autopsy_row(rows, w.get("mint"), float(w.get("exit_ts") or 0),
+                                w.get("exit_tx"), _tune_iso_to_ts)
+    if best is None:
         return False
     blk = _post_exit_block(w)
     best["post_exit"] = blk
@@ -38974,6 +39052,14 @@ def _post_close_apply(w: dict) -> bool:
     best["time_to_peak"] = blk["time_to_peak_min"]
     best["sold_too_early"] = blk["sold_too_early"]
     _save_json_atomic(AUTOPSY_REPORTS_FILE, rows)
+    try:   # v1.0.4: same numbers in the ledger, so ledger and autopsy agree
+        exec_log("post_exit", ticker=best.get("ticker"), mint=best.get("mint"),
+                 detail=f"{best.get('exit_type')} | peak_after_exit {blk['peak_after_exit']} | "
+                        f"{blk['max_x_vs_exit']}x vs exit",
+                 exit_type=best.get("exit_type"), peak_after_exit=blk["peak_after_exit"],
+                 max_x_vs_exit=blk["max_x_vs_exit"], status=w.get("status"))
+    except Exception:
+        pass
     return True
 
 
@@ -40549,6 +40635,7 @@ async def main() -> None:
         SupervisedTask("deep_research_handler", deep_research_response_handler_loop).run(),
         SupervisedTask("signal_executor", signal_executor_loop).run(),
         SupervisedTask("position_monitor", position_monitor_loop).run(),
+        SupervisedTask("monitor_watchdog", _monitor_watchdog_loop).run(),
         SupervisedTask("open_bag_price", open_bag_price_loop).run(),
         SupervisedTask("wallet_tracker", wallet_tracker_loop).run(),
         SupervisedTask("autopsy_writer", autopsy_writer_loop).run(),
