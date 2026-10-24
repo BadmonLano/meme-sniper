@@ -3357,3 +3357,26 @@ FLOYD (Oct 13) would have been skipped on both checks: its creator was funded by
 - **Watchdog:** if the position monitor's heartbeat is older than `WATCHDOG_STALE_S` (300s) while positions are open, you get an alert through your alerts channel. It repeats every `WATCHDOG_REALERT_S` (30 min) and sends a "recovered" note when the monitor comes back. It runs inside the bot, and you can also run `python bots/sub-bots/monitor_watchdog.py` separately to catch a dead process. Off: `MONITOR_WATCHDOG=false`.
 
 Agent use: put `celeb_post` on the buy signal only for a real post you saw (handle, followers, verified, post_id, posted_ts). A rejected `celeb_post: veto ...` or `wait ...` is final for that signal. Resend after the creator sells if it said wait. `scale_in_add` / `scale_in_skip` rows in the ledger explain the second leg.
+
+## celeb_post cards: X Intel to agent to Sniper (v1.0.5)
+
+When X Intel, the bundled watcher, or any agent sees a verified X account with 250k+ followers post a Solana CA, it writes a **card** to `json_relay/celeb_post_cards.json` (schema `celeb_post_card/1`, see `bots/celeb_card.py`). **Nothing buys automatically.** An agent reads the card, decides, and only if it wants the trade writes a normal buy to `json_relay/agent_signals.json` with the card's `celeb_post` block attached. Sniper's celeb rule then re-checks on-chain before it buys.
+
+Each card carries `celeb_post` {handle, followers, verified, post_id, posted_ts, text, url} plus context:
+- `shill_history`: how many other CAs this account has posted before.
+- `post_deleted`: true, false, or null (null means not rechecked yet).
+- `creator_sold` and `creator_balance_pct`.
+- `funding_cluster`: clean, fanout_funder, second_coin or unknown.
+- `rule_preview`: what the celeb rule says right now.
+
+`decision` is always `"agent"`. Any unknown means risk, not clean.
+
+**Optional watcher:** `python bots/sub-bots/x_celeb_watch.py` (add `--once` for a single pass). It uses your own `X_BEARER_TOKEN` from `bots/.env`. Watch specific accounts with `CELEB_WATCH_HANDLES`, or a search with `CELEB_WATCH_QUERY` (set it to `off` to disable). It polls every `CELEB_WATCH_INTERVAL_S` (180s), backs off when X rate-limits, skips posts it has already seen, and rechecks recent posts for deletion. With `SOLANA_RPC_URL` or `HELIUS_RPC_URL` set, it also fills in the on-chain context. No token or an API error means no cards. Off: `CELEB_WATCH=false`.
+
+### How to reason on a celeb_post card
+1. **Veto first.** `funding_cluster` is fanout_funder or second_coin: skip, that's FLOYD's shape. If it's `unknown`, size as if it were risky or wait.
+2. **Creator status.** `creator_sold` false means wait, since the creator can dump on the post. Recheck later. Null means unknown, don't assume it's sold.
+3. **Deleted post.** `post_deleted` true usually comes right before the dump. Don't enter, and exit any open celeb position.
+4. **Shill history.** More than 2 prior CAs from the same account (`prior_cards`) means a paid-promo account: smaller size or skip. Check how those prior CAs did if you can.
+5. **Freshness.** Over 4h since `posted_ts` means the edge is gone (the rule rejects it anyway).
+6. **If you take it:** write the buy to `agent_signals.json` with `celeb_post` copied from the card and a one-line reason. Sniper fixes the size at 0.1 SOL and the exits (half off at 3x, 35% trail, -25% stop) and re-checks on-chain. A veto, wait or fail-safe rejection is final for that signal.

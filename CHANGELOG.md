@@ -2,6 +2,12 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.5 (2026-10-24): celeb_post cards for agents
+- New relay card `celeb_post_card/1` (`bots/celeb_card.py`) in `json_relay/celeb_post_cards.json`: celeb_post {handle, followers, verified, post_id, posted_ts, text, url} plus shill history, deleted-post flag, creator-sold status, funding-cluster verdict and a rule preview. The agent decides; nothing auto-buys.
+- Optional watcher `bots/sub-bots/x_celeb_watch.py` (your own X bearer token): skips posts it has seen, backs off on rate limits, rechecks for deletes, and emits nothing on errors. Off-switch `CELEB_WATCH`.
+- The meme-hunter skill now covers how to reason on celeb_post cards.
+- Tests: `bots/tests/test_v105.py`.
+
 ## v1.0.4 (2026-10-24): celebrity-post rule, scale-in, trail, exit logging, watchdog
 - **Celebrity-post rule** (`bots/celeb_post.py`, `CELEB_POST_RULE`): enters on a verified, big-account CA post only after the creator has fully sold. Skips fan-out-funded creators and clusters that launch a second coin. Fixed 0.1 SOL, half off at 3x, 35% trail, -25% stop. Missing data means no entry. FLOYD replay test included.
 - **Scale-in** (`bots/scale_in.py`, `SCALE_IN`): 0.05 SOL first leg, then the rest after 5 min if liquidity and price hold.

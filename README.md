@@ -340,9 +340,24 @@ FLOYD (Oct 13) would have been skipped on both checks: its creator was funded by
 - **Exit logging:** the ledger and the autopsy now use one resolver for exit type, and the monitor's last trigger fills it in, so "manual" and "unknown_exit" stop showing up for monitored exits. The post-exit peak is matched by exit tx or a lone row within 6h, and the same numbers now go into the ledger as a `post_exit` row.
 - **Watchdog:** if the position monitor's heartbeat is older than `WATCHDOG_STALE_S` (300s) while positions are open, you get an alert through your alerts channel. It repeats every `WATCHDOG_REALERT_S` (30 min) and sends a "recovered" note when the monitor comes back. It runs inside the bot, and you can also run `python bots/sub-bots/monitor_watchdog.py` separately to catch a dead process. Off: `MONITOR_WATCHDOG=false`.
 
+## celeb_post cards: X Intel to agent to Sniper (v1.0.5)
+
+When X Intel, the bundled watcher, or any agent sees a verified X account with 250k+ followers post a Solana CA, it writes a **card** to `json_relay/celeb_post_cards.json` (schema `celeb_post_card/1`, see `bots/celeb_card.py`). **Nothing buys automatically.** An agent reads the card, decides, and only if it wants the trade writes a normal buy to `json_relay/agent_signals.json` with the card's `celeb_post` block attached. Sniper's celeb rule then re-checks on-chain before it buys.
+
+Each card carries `celeb_post` {handle, followers, verified, post_id, posted_ts, text, url} plus context:
+- `shill_history`: how many other CAs this account has posted before.
+- `post_deleted`: true, false, or null (null means not rechecked yet).
+- `creator_sold` and `creator_balance_pct`.
+- `funding_cluster`: clean, fanout_funder, second_coin or unknown.
+- `rule_preview`: what the celeb rule says right now.
+
+`decision` is always `"agent"`. Any unknown means risk, not clean.
+
+**Optional watcher:** `python bots/sub-bots/x_celeb_watch.py` (add `--once` for a single pass). It uses your own `X_BEARER_TOKEN` from `bots/.env`. Watch specific accounts with `CELEB_WATCH_HANDLES`, or a search with `CELEB_WATCH_QUERY` (set it to `off` to disable). It polls every `CELEB_WATCH_INTERVAL_S` (180s), backs off when X rate-limits, skips posts it has already seen, and rechecks recent posts for deletion. With `SOLANA_RPC_URL` or `HELIUS_RPC_URL` set, it also fills in the on-chain context. No token or an API error means no cards. Off: `CELEB_WATCH=false`.
+
 ## Versions and releases
 
-- Versions look like `v1.0.4` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Versions look like `v1.0.5` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.
