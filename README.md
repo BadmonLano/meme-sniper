@@ -309,9 +309,23 @@ Ideas and fixes are welcome. Everything is reviewed by the repo owner. **Nothing
 
 Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Fee-wallet vault exception (v1.0.3)
+
+Some pump.fun launches look like a bundle but aren't. The creator buys most of the supply at creation, then **transfers** (not sells) a big slice to one wallet that is also the coin's creator-fee recipient and has never signed a transaction. Then the creator sells its small remainder. KIMCHI (Oct 20, 2026) did exactly this and ran to about $40M. The launch-spike rule ($100k in under 10 min) used to skip these.
+
+Sniper now treats a launch as a **vault** only when all four checks pass:
+1. The creator made an SPL transfer of at least `VAULT_MIN_TRANSFER_PCT` (20%) to one wallet.
+2. That wallet is the pump.fun creator-fee recipient.
+3. That wallet has zero outgoing (self-signed) transactions.
+4. The creator is done selling: under `VAULT_CREATOR_DONE_PCT` (5%) left, or no sell for `VAULT_CREATOR_QUIET_S` (60s).
+
+When it's a vault: the vault is left out of top-10 math (`float_top10_pct` on the card), the launch-spike kill is skipped, and every other hard cap still applies (size cap, 0.1 SOL floor, drawdown, liquidity floor, authorities). Entry is a fixed `VAULT_ENTRY_SOL` (0.1). Exits: **instant exit if the vault signs any transaction**, a -25% stop, 50% off at 3x, then a 35% trail.
+
+Turn it off with `VAULT_EXCEPTION=false`. If any data is missing (RPC down, pump.fun API down), the check fails and the normal rules apply.
+
 ## Versions and releases
 
-- Versions look like `v1.0.1` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Versions look like `v1.0.3` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.

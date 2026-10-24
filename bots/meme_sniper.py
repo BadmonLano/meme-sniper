@@ -22850,6 +22850,22 @@ async def _build_meme_candidate_packet_locked(profile: dict, mint: str, surfaced
     except Exception as _se:
         _spike = {"ok": False, "block": False, "reason": f"spike_check_error:{_se}"}
     packet.setdefault("context", {})["launch_spike"] = _spike
+    # v1.0.3 fee-wallet vault: creator parked supply in its own fee wallet, not a bundle.
+    if _spike.get("block"):
+        try:
+            import fee_vault as _fv
+            _vv = await _fv.check_mint(mint, (deployer_history or {}).get("address"), helius_rpc)
+            packet["context"]["fee_vault"] = _vv
+            if _vv.get("vault"):
+                _ft = _fv.float_top10_pct((holders or {}).get("top_holders") or [],
+                                          _vv["vault_wallet"], _fv.TOTAL_SUPPLY_RAW_DEFAULT)
+                packet["context"]["fee_vault"]["float_top10_pct"] = _ft
+                _spike = {**_spike, "block": False, "vault_override": True,
+                          "reason": f"{_spike.get('reason')} | overridden: fee-wallet vault "
+                                    f"{_vv['vault_wallet'][:6]}… holds {_vv.get('vault_pct')}%"}
+                packet["context"]["launch_spike"] = _spike
+        except Exception as _fve:
+            packet["context"]["fee_vault"] = {"vault": False, "reason": f"vault_check_error:{_fve}"}
     # 2026-10-15: the 1m-candle spike peak is truth; if it beats the observer/own
     # peak the provisional zone used, re-anchor the map on it (and remember it).
     try:
@@ -26035,6 +26051,25 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
         _spike = await asyncio.to_thread(check_launch_spike, mint)
     except Exception as _se:
         _spike = {"block": False, "reason": f"spike_check_error:{_se}"}
+    if _spike.get("block"):
+        # v1.0.3 fee-wallet vault exception: fixed small size + vault exit rules.
+        try:
+            import fee_vault as _fv
+            _vv = await _fv.check_mint(mint, sig.get("deployer") or sig.get("creator")
+                                       or await _identify_deployer(mint), helius_rpc)
+        except Exception as _fve:
+            _vv = {"vault": False, "reason": f"vault_check_error:{_fve}"}
+        if _vv.get("vault"):
+            amount_sol = min(amount_sol, _fv.entry_size_sol()) if amount_sol > 0 else _fv.entry_size_sol()
+            amount_sol = max(amount_sol, _fv.entry_size_sol())
+            params = _fv.exit_params(params)
+            params["fee_vault"] = {"wallet": _vv["vault_wallet"],
+                                   "outgoing_at_entry": int(_vv.get("outgoing_at_entry") or 0)}
+            sig["params"] = params
+            sig["amount_sol"] = amount_sol
+            _log(f"exec: launch_spike overridden for {ticker}: fee-wallet vault "
+                 f"{_vv['vault_wallet'][:6]}… ({_vv.get('vault_pct')}%). size {amount_sol} SOL", prefix="exec")
+            _spike = {**_spike, "block": False, "vault_override": True}
     if _spike.get("block"):
         _why = _spike.get("reason") or "launch_spike"
         await write_signal_response(sig_id, "rejected", error=f"launch_spike: {_why}")
@@ -30548,6 +30583,22 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
     # wider SL param — never a silently suppressed stop. `_is_snoozed` is read
     # below at the two tp_hit blocks and nowhere else in this evaluator.
     
+    # 0. v1.0.3 fee-wallet vault moved: exit everything, beats every other trigger.
+    _vault_trigger = None
+    _fvp = (params or {}).get("fee_vault") if isinstance(params, dict) else None
+    if _fvp and _fvp.get("wallet"):
+        try:
+            import fee_vault as _fv
+            if _now_ts() - float(position.get("_vault_checked_ts") or 0) >= 20:
+                position["_vault_checked_ts"] = _now_ts()
+                _vt = _fv.vault_exit_trigger({"fee_vault": _fvp},
+                                             await _fv.count_outgoing(_fvp["wallet"], helius_rpc))
+                if _vt:
+                    position["vault_moved"] = True
+                    exit_trigger = _vault_trigger = _vt
+        except Exception as _fve:
+            _log(f"vault watch err {ticker}: {_fve}", prefix="exit")
+
     # 1. SL hit
     # Sprint 28.7.6: defensively normalize to positive magnitude. New buys are
     # normalized at signal-validation time, but pre-existing positions may have
@@ -30924,6 +30975,8 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
         or (age_min >= 90 and pnl_pct >= 20)
         or _unpaid
     )
+    if _vault_trigger:                 # v1.0.3: vault moved outranks every later trigger
+        exit_trigger = _vault_trigger
     if exit_trigger and exit_trigger.get("type") in _SENSORY_TYPES and _runner_now:
         if str(position.get("mode") or params.get("mode") or "flip").lower() == "flip":
             position["mode"] = "hold"

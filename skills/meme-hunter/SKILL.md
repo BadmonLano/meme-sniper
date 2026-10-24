@@ -3322,3 +3322,19 @@ Sign in once and Sniper remembers you. Your repos show up automatically at launc
 
 Where it's saved: Windows Credential Manager (or the OS keyring); if that's missing, a file in `bot_logs/` only your user can read. The token is never printed or logged. Default access is read-only public data.
 Not set up or signed out? Nothing breaks: type a GitHub username, paste a repo link, or launch with no repo. `SNIPER_GH_NO_LOGIN=1` ignores a saved sign-in.
+
+## Fee-wallet vault exception (v1.0.3)
+
+Some pump.fun launches look like a bundle but aren't. The creator buys most of the supply at creation, then **transfers** (not sells) a big slice to one wallet that is also the coin's creator-fee recipient and has never signed a transaction. Then the creator sells its small remainder. KIMCHI (Oct 20, 2026) did exactly this and ran to about $40M. The launch-spike rule ($100k in under 10 min) used to skip these.
+
+Sniper now treats a launch as a **vault** only when all four checks pass:
+1. The creator made an SPL transfer of at least `VAULT_MIN_TRANSFER_PCT` (20%) to one wallet.
+2. That wallet is the pump.fun creator-fee recipient.
+3. That wallet has zero outgoing (self-signed) transactions.
+4. The creator is done selling: under `VAULT_CREATOR_DONE_PCT` (5%) left, or no sell for `VAULT_CREATOR_QUIET_S` (60s).
+
+When it's a vault: the vault is left out of top-10 math (`float_top10_pct` on the card), the launch-spike kill is skipped, and every other hard cap still applies (size cap, 0.1 SOL floor, drawdown, liquidity floor, authorities). Entry is a fixed `VAULT_ENTRY_SOL` (0.1). Exits: **instant exit if the vault signs any transaction**, a -25% stop, 50% off at 3x, then a 35% trail.
+
+Turn it off with `VAULT_EXCEPTION=false`. If any data is missing (RPC down, pump.fun API down), the check fails and the normal rules apply.
+
+On the card: `context.fee_vault` = {vault, vault_wallet, vault_pct, checks, float_top10_pct}; `context.launch_spike.vault_override` = true when the kill was skipped. A `vault_moved` exit trigger is critical: exit the whole bag.
