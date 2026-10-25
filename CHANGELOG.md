@@ -2,6 +2,18 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.7 (2026-10-25): six-token replay fixes (trending fast lane, clone runner, expired cards, parody lane, X profile, bundles)
+Built from a replay of six parody-ticker runners Sniper saw but never bought. All rules live in `bots/v107_rules.py`; each has an env off-switch (default on).
+- **Trending fast lane** (`TREND_FAST`): a coin holding top-3 trending for 1h+ becomes a full buy candidate (was 8h only), with pump.fun story, socials and social read. Knobs `TREND_FAST_TOP_N` 3, `TREND_FAST_HOURS` 1, `TREND_FAST_MAX_GAP_MIN` 40. Scale-in and the +20% trail apply.
+- **Clone gate runner override** (`CLONE_RUNNER_OVERRIDE`): a "clone" passes when it is the one running: mcap >= `CLONE_OVERRIDE_MCAP_USD` ($500K), or >= `CLONE_OVERRIDE_X_ORIGINAL` (2x) the "original", or on the miss book.
+- **Expired card fallback** (`EXPIRED_CARD_FALLBACK`): a candidate that expires with no decision gets a small buy (`EXPIRED_CARD_FALLBACK_SOL` 0.05) if its rug check is clean (`EXPIRED_CARD_FALLBACK_ALLOW_CAUTION` to allow caution); otherwise ignored with the reason in `bot_logs/ttl_fallback.jsonl`. The buy still goes through every normal executor gate.
+- **Parody-ticker lane** (`PARODY_LANE`): tickers copying big coins (BTC, ETH, SOL, LTC...) go to `json_relay/parody_ticker_alerts.json`. Alerts only, never buys. Add names with `PARODY_EXTRA_TICKERS`.
+- **X profile fill** (`X_PROFILE_FILL`): follower count, account age and verified via your `X_BEARER_TOKEN`, cached 24h in `bot_logs/x_profile_cache.json`, capped by `X_PROFILE_MAX_PER_HOUR` (60).
+- **Trending ticker fix** (`TRENDING_TICKER_FIX`): trending_track entries refresh their ticker from the base-side pair, so a mint is no longer stuck with another coin's ticker.
+- **Bundle check** (`BUNDLE_CHECK`, 1 Helius call per mint, cached): bundle % goes on the buy. At >= `BUNDLE_REDUCE_PCT` (25%) size x `BUNDLE_SIZE_MULT` (0.5), stop `BUNDLE_STOP_LOSS_PCT` (15) and trail giveback `BUNDLE_TRAIL_GIVEBACK_PTS` (10). Blocks only when bundle wallets sold >= `BUNDLE_BLOCK_SOLD_PCT` (50%) into a drawdown >= `BUNDLE_BLOCK_DRAWDOWN_PCT` (40%) (`BUNDLE_BLOCK_ON_DUMP`).
+- **Coverage** (`COVERAGE_GECKO`): GeckoTerminal Solana trending pools feed the trending tracker. Coins that never pay for DexScreener boosts were invisible before.
+- Tests: `bots/tests/test_v107.py` (replays of the six tokens).
+
 ## v1.0.6 (2026-10-24): owner-position takeover pricing fix
 - **Root cause:** `fetch_token_data` took the highest-liquidity DexScreener pair even when the mint sat on the QUOTE side (`OTHER/<mint>`), so it used the other token's price and symbol. A $0.09 bag was booked at $2.67M/token ($1,711) and tripped a fake -100% stop after the 30-min auto-takeover.
 - `fetch_token_data` now only uses pairs where the mint is the base token (`_base_side_pairs`).

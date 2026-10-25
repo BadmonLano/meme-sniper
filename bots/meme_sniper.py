@@ -7849,6 +7849,11 @@ def trending_track_record_appearance(mint: str, ticker: str, rank: int, scanned_
         }
     
     entry = tt[mint]
+    try:  # v1.0.7 fix 6: a stale/mislabelled ticker self-heals from the base-side pair
+        import v107_rules as _v107
+        _v107.heal_ticker(entry, ticker)
+    except Exception:
+        pass
     entry["appearances"].append({"ts": scanned_at_ts, "rank": rank})
     entry["last_seen_ts"] = scanned_at_ts
     entry["total_appearances"] += 1
@@ -7884,6 +7889,14 @@ def trending_track_record_appearance(mint: str, ticker: str, rank: int, scanned_
         # Set hold candidate flag (Sprint 32: tunable via meeting override)
         hold_threshold = get_override_sync("TRENDING_HOLD_THRESHOLD_HOURS", TRENDING_HOLD_THRESHOLD_HOURS)
         entry["is_hold_candidate"] = entry["consecutive_top_10_hours"] >= hold_threshold
+        entry["hold_reason"] = "persistent_8h" if entry["is_hold_candidate"] else None
+        try:  # v1.0.7 fix 1: top-3 for 1h+ is a candidate too (TREND_FAST)
+            import v107_rules as _v107
+            if not entry["is_hold_candidate"] and _v107.trend_fast(entry, scanned_at_ts):
+                entry["is_hold_candidate"] = True
+                entry["hold_reason"] = "top3_1h"
+        except Exception:
+            pass
     
     try:
         _save_json_atomic(TRENDING_TRACK_FILE, tt)
@@ -7942,6 +7955,14 @@ def _stamp_trending_boost_board(mint: str, entry: dict = None) -> bool:
         board["count"] = len(board["rows"])
         _save_json_atomic(_digest, pkt)
         return True
+    except Exception:
+        return False
+
+
+def _buys_paused_global() -> bool:
+    """v1.0.7: TTL fallback respects a buy pause (BUYS_PAUSED override)."""
+    try:
+        return bool(get_override_sync("BUYS_PAUSED", False))
     except Exception:
         return False
 
@@ -9146,6 +9167,16 @@ def _clone_gate(packet: dict, mint: str, path) -> Optional[str]:
         if _rn:
             _clone_runner_mark(packet, _rn)
             return None      # own "Clone Running" card; the cluster card is left as is
+    try:  # v1.0.7 fix 2: the 'clone' that is actually running passes (CLONE_RUNNER_OVERRIDE)
+        import v107_rules as _v107
+        _ovr = _v107.clone_override(ctx, br, mint, MISS_BOOK_FILE)
+    except Exception:
+        _ovr = None
+    if _ovr:
+        ctx["clone_override"] = _ovr
+        _log(f"clone gate override {tkr} {_short_mint(mint)}: {_ovr}", prefix="clone")
+        _CLONE_CLUSTER_CARD[tkr] = {"path": str(path), "mint": mint, "ts": now}
+        return None
     vibe = (ctx.get("social_sentiment") or {}).get("overall_vibe")
     hp = Path(held["path"]) if held.get("path") else None
     if vibe == "dead":
@@ -22605,6 +22636,16 @@ async def _build_meme_candidate_packet_locked(profile: dict, mint: str, surfaced
     # Step 6: enrichment for narrative_intelligence
     prior_launches = find_prior_launches(base.get("symbol"), base.get("name"))
     
+    # v1.0.7 fix 5: X followers + account age via the bearer token (X_PROFILE_FILL, cached)
+    _v107_xp = {}
+    try:
+        import v107_rules as _v107
+        if twitter_handle and not is_x_community:
+            _v107_xp = await asyncio.to_thread(_v107.x_profile, twitter_handle,
+                                               _BOT_LOGS / "x_profile_cache.json")
+    except Exception:
+        _v107_xp = {}
+
     # Build the data we'll feed to LLM
     enrichment_input = {
         "mint": mint,
@@ -22617,8 +22658,8 @@ async def _build_meme_candidate_packet_locked(profile: dict, mint: str, surfaced
         "twitter_handle": twitter_handle,
         "is_x_community": is_x_community,
         "is_x_status_link": is_status_link,
-        "twitter_followers": None,  # PENDING: needs X API/scraper integration
-        "x_account_age_days": None,  # PENDING: needs X API/scraper integration
+        "twitter_followers": _v107_xp.get("followers"),   # v1.0.7: X API (bearer), cached
+        "x_account_age_days": _v107_xp.get("age_days"),
         "mcap": mcap,
         "liquidity_usd": liq,
         "volume_5m": vol.get("m5", 0) or 0,
@@ -22826,9 +22867,11 @@ async def _build_meme_candidate_packet_locked(profile: dict, mint: str, surfaced
                 # who_shilling has been an alias for deep_research["x"] since Sprint
                 # 28.4 and never touches the old handoff. Filled by deep_research[x]
                 # if the research responder returns twitter_account_data; stays None otherwise.
-                "twitter_followers": None,
-                "x_account_age_days": None,
-                "x_quality": _classify_x_quality(0, 0),
+                "twitter_followers": _v107_xp.get("followers"),
+                "x_account_age_days": _v107_xp.get("age_days"),
+                "x_verified": _v107_xp.get("verified"),
+                "x_profile_source": _v107_xp.get("source"),
+                "x_quality": _classify_x_quality(_v107_xp.get("followers") or 0, _v107_xp.get("age_days") or 0),
                 "x_chatter_recent": x_chatter.get("summary"),
                 "x_chatter_cache_age_minutes": x_chatter.get("cache_age_minutes"),
                 "x_community": twitter_url if is_x_community else None,
@@ -26246,6 +26289,34 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
     #
     # Either a setup is worth 0.1 SOL or it isn't worth taking. There is no third option.
     MIN_BUY_SOL = float(get_override_sync("MIN_BUY_SOL", 0.1))
+    # v1.0.7 fix 7: bundle check. Flags bundle %; >25% = smaller size + tighter exits;
+    # blocks only when bundle wallets are dumping into a falling chart (BUNDLE_CHECK).
+    if (sig.get("_scale_in_leg") != "add" and "fee_vault" not in params
+            and "celeb_post" not in params):
+        try:
+            import v107_rules as _v107
+            _bd = await _v107.bundle_check(mint, helius_rpc, sig.get("price_drawdown_pct"))
+        except Exception as _bde:
+            _bd = {"action": "normal", "flag": None, "reason": f"bundle_check_error:{type(_bde).__name__}"}
+        if _bd.get("flag"):
+            params["bundle_check"] = {"flag": _bd.get("flag"), "action": _bd.get("action"),
+                                      "bundle_pct": _bd.get("bundle_pct")}
+            sig["params"] = params
+            _log(f"exec: bundle {ticker}: {_bd.get('flag')} -> {_bd.get('action')}", prefix="exec")
+        if _bd.get("action") == "block":
+            await write_signal_response(sig_id, "rejected", error=f"bundle_dump: {_bd.get('reason')}")
+            await write_signal_rejected_packet(sig_id, mint, ticker, amount_sol, "bundle_dump",
+                                               f"{_bd.get('reason')}. no buy.")
+            return
+        if _bd.get("action") == "reduce":
+            amount_sol = round(amount_sol * float(_bd.get("size_mult") or 1.0), 6)
+            _xo = _bd.get("exit_overrides") or {}
+            if _xo.get("stop_loss_pct"):
+                params["stop_loss_pct"] = min(float(params.get("stop_loss_pct") or 999),
+                                              float(_xo["stop_loss_pct"]))
+            if _xo.get("trail_giveback_pts"):
+                params["trail_giveback_pts"] = _xo["trail_giveback_pts"]
+            sig["params"], sig["amount_sol"], sig["_v107_small"] = params, amount_sol, True
     # v1.0.4 scale-in: 0.05 first leg, add later if the pool holds. The planned
     # total must still clear the floor; only the legs themselves go under it.
     _si_plan = None
@@ -26259,7 +26330,7 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
         amount_sol = _si_plan["first"]
         sig["amount_sol"] = amount_sol
         _log(f"exec: scale-in {ticker}: first {_si_plan['first']} SOL, add {_si_plan['add']} SOL later", prefix="exec")
-    if _si_plan or sig.get("_scale_in_leg") == "add":
+    if _si_plan or sig.get("_scale_in_leg") == "add" or sig.get("_v107_small"):
         MIN_BUY_SOL = min(MIN_BUY_SOL, amount_sol)
     if amount_sol < MIN_BUY_SOL:
         await write_signal_response(
@@ -30808,7 +30879,7 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
         position["higher_cap_trail_floor"] = _tr_floor
     # v1.0.4: default positions trail on PnL points given back (TRAIL_GIVEBACK_PTS, 15)
     # once armed at +trail_activate (20). Fixed-rule entries (vault/celeb) keep % trail.
-    _gb_pts = float(os.environ.get("TRAIL_GIVEBACK_PTS") or 15)
+    _gb_pts = float((params or {}).get("trail_giveback_pts") or os.environ.get("TRAIL_GIVEBACK_PTS") or 15)
     _use_pts = _gb_pts > 0 and (params or {}).get("trail_mode") != "pct"
     if peak_pnl >= trail_activate and _use_pts:
         position["trail_armed"] = True
@@ -36869,9 +36940,25 @@ async def trending_scanner_loop() -> None:
             # Take top N (TRENDING_HOLD_TOP_N = 10)
             top_n = boosts[:TRENDING_HOLD_TOP_N]
             now_ts = int(_now_ts())
+            # v1.0.7 coverage: NIO/ETH never paid for boosts, so DexScreener boosts never
+            # showed them. GeckoTerminal Solana trending pools (free) did. COVERAGE_GECKO.
+            _gk = []
+            try:
+                import v107_rules as _v107
+                _gk = await asyncio.to_thread(_v107.gecko_trending)
+                _bset = {b.get("tokenAddress") for b in top_n}
+                _gk = [g for g in _gk if g.get("tokenAddress") not in _bset]
+                for _g in _gk:
+                    try:
+                        record_seen_mint(_g["tokenAddress"], source="gecko_trending")
+                    except Exception:
+                        pass
+            except Exception as _gke:
+                _log(f"gecko coverage err: {_gke}", prefix="trend")
             
             # Record appearance for each top-N mint
-            for rank, entry in enumerate(top_n, start=1):
+            for rank, entry in ([(r, e) for r, e in enumerate(top_n, start=1)]
+                                + [(g.get("rank"), g) for g in _gk]):
                 mint = entry.get("tokenAddress")
                 if not mint:
                     continue
@@ -36881,7 +36968,17 @@ async def trending_scanner_loop() -> None:
                 if pair:
                     base = pair.get("baseToken") or {}
                     ticker = base.get("symbol", "?")
+                if ticker == "?" and entry.get("symbol"):
+                    ticker = entry.get("symbol")
                 trending_track_record_appearance(mint, ticker, rank, now_ts)
+                try:  # v1.0.7 fix 4: parody-ticker lane (alerts only, PARODY_LANE)
+                    import v107_rules as _v107
+                    if _v107.parody_alert(_JSON_RELAY / "parody_ticker_alerts.json", mint, ticker,
+                                          rank=rank, mcap=(pair or {}).get("marketCap"),
+                                          source=entry.get("_source") or "dex_boosts"):
+                        _log(f"parody ticker alert {ticker} {_short_mint(mint)} rank {rank}", prefix="trend")
+                except Exception:
+                    pass
             
             # Now build packets for top tokens (concurrency-bounded)
             written = 0
@@ -36974,6 +37071,16 @@ async def trending_scanner_loop() -> None:
                             "persistence, not a flash. That's why it earned its own packet "
                             "instead of just sitting in the DEX digest menu. Worth a real look."
                         )
+                        try:  # v1.0.7 fix 1: say which lane fired
+                            _tre = load_trending_track().get(mint, {}) or {}
+                            if _tre.get("hold_reason") == "top3_1h":
+                                packet["_doctrine"] = (
+                                    "Held top-3 trending for 1h+ (v1.0.7 fast lane, TREND_FAST). "
+                                    "Story, socials and social read are attached. Scale-in and the "
+                                    "+20% trail apply as usual.")
+                            (packet.setdefault("context", {}))["trending_lane"] = _tre.get("hold_reason")
+                        except Exception:
+                            pass
                         write_meme_candidate_packet(packet)
                         return "written"
                     except Exception as e:
@@ -36981,7 +37088,7 @@ async def trending_scanner_loop() -> None:
                         return "error"
             
             results = await asyncio.gather(
-                *[_process_trending(entry, rank) for rank, entry in enumerate(top_n, 1)],
+                *[_process_trending(entry, rank) for rank, entry in enumerate(top_n + _gk, 1)],
                 return_exceptions=True,
             )
             
@@ -38044,7 +38151,26 @@ async def packet_ttl_loop() -> None:
 
                     # Synthetic decline for a no-decision candidate (honest throttle math)
                     _ptype = packet.get("type", "")
+                    _v107_fb_buy = False
                     if (_ptype.startswith("meme_candidate") and pkt_mint
+                            and pkt_mint not in _recent_declined_mints
+                            and pkt_mint not in _ttl_synth_this_cycle):
+                        try:  # v1.0.7 fix 3: expired card -> small buy if rug check clean
+                            import v107_rules as _v107
+                            _fb = _v107.expired_fallback(packet, _now_ts())
+                            if _fb.get("buy") and not _buys_paused_global():
+                                _v107.append_signal(AGENT_SIGNALS_FILE, _fb["signal"])
+                                _v107_fb_buy = True
+                                _ttl_synth_this_cycle.add(pkt_mint)
+                            _append_jsonl(_BOT_LOGS / "ttl_fallback.jsonl", {
+                                "ts": _now_iso(), "mint": pkt_mint,
+                                "ticker": (packet.get("context") or {}).get("ticker"),
+                                "buy": _v107_fb_buy, "reason": _fb.get("reason")})
+                            _log(f"packet_ttl fallback {_short_mint(pkt_mint)}: "
+                                 f"{'BUY' if _v107_fb_buy else 'ignore'} ({_fb.get('reason')})", prefix="ttl")
+                        except Exception as _fbe:
+                            _log(f"packet_ttl fallback err: {_fbe}", prefix="ttl")
+                    if (not _v107_fb_buy and _ptype.startswith("meme_candidate") and pkt_mint
                             and pkt_mint not in _recent_declined_mints
                             and pkt_mint not in _ttl_synth_this_cycle):
                         try:
