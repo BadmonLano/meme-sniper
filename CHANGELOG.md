@@ -2,6 +2,12 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.6 (2026-10-24): owner-position takeover pricing fix
+- **Root cause:** `fetch_token_data` took the highest-liquidity DexScreener pair even when the mint sat on the QUOTE side (`OTHER/<mint>`), so it used the other token's price and symbol. A $0.09 bag was booked at $2.67M/token ($1,711) and tripped a fake -100% stop after the 30-min auto-takeover.
+- `fetch_token_data` now only uses pairs where the mint is the base token (`_base_side_pairs`).
+- **Takeover guard:** an adopted owner bag is priced from a live Jupiter sell quote of the wallet's actual raw balance. Under `OWNER_POS_ADOPT_MIN_USD` (default $1) or no quote: not adopted, logged as `take_over_refused`. Detection mark vs live off by more than `OWNER_POS_PRICE_MAX_RATIO` (default 3x): booked at the live price and logged as `price_flag`.
+- Tests: ORE replay in `bots/tests/test_owner_positions_sniper.py`; fixed the `_env_clean` harness import in that test and `test_clone_runner.py`.
+
 ## v1.0.5 (2026-10-24): celeb_post cards for agents
 - New relay card `celeb_post_card/1` (`bots/celeb_card.py`) in `json_relay/celeb_post_cards.json`: celeb_post {handle, followers, verified, post_id, posted_ts, text, url} plus shill history, deleted-post flag, creator-sold status, funding-cluster verdict and a rule preview. The agent decides; nothing auto-buys.
 - Optional watcher `bots/sub-bots/x_celeb_watch.py` (your own X bearer token): skips posts it has seen, backs off on rate limits, rechecks for deletes, and emits nothing on errors. Off-switch `CELEB_WATCH`.

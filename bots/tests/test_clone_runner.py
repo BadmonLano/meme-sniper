@@ -15,7 +15,7 @@ ns = {"os": os, "json": json, "asyncio": asyncio, "Optional": Optional, "_BOT_LO
       "_log": lambda *a, **k: None, "fetch_token_data": None,
       "_safe_num": lambda v: float(v) if v not in (None, "") else None,
       "_save_json_atomic": lambda p, d: Path(p).write_text(json.dumps(d))}
-import os as _os; ns.setdefault("os", _os); _h = src.index("def _envv("); exec(src[_h:src.index("\n\n", _h)], ns)  # blank-as-unset helper used by the extracted code
+import os as _os; ns.setdefault("os", _os); _c = src.find("def _env_clean("); _c >= 0 and exec(src[_c:src.index("\n\n", _c)], ns); _h = src.index("def _envv("); exec(src[_h:src.index("\n\n", _h)], ns)  # blank-as-unset helper used by the extracted code
 exec(src[a:b], ns)
 ok = 0
 def check(c, m):

@@ -4380,6 +4380,17 @@ def is_bonded_dexid(token_data: dict) -> bool:
     return bool(dex_id) and dex_id in BONDED_DEXIDS_ALLOWED
 
 
+def _base_side_pairs(pairs: list, mint: str) -> list:
+    """v1.0.6: keep only DexScreener pairs whose BASE token is `mint`. Pairs without
+    a baseToken.address are kept (older/mocked payloads) so nothing silently empties."""
+    out = []
+    for p in pairs or []:
+        addr = ((p or {}).get("baseToken") or {}).get("address")
+        if addr is None or addr == mint:
+            out.append(p)
+    return out
+
+
 async def fetch_token_data(mint: str) -> Optional[dict]:
     """
     Fetch full DEX data for a specific token. Returns the highest-liquidity pair.
@@ -4391,6 +4402,12 @@ async def fetch_token_data(mint: str) -> Optional[dict]:
             return None
         data = r.json() or {}
         pairs = data.get("pairs", []) or []
+        if not pairs:
+            return None
+        # v1.0.6: DexScreener /tokens/<mint> also returns pairs where this mint is the
+        # QUOTE side (OTHER/<mint>). Their priceUsd/symbol belong to the other token -
+        # that is how a $0.09 SPCX bag got marked as $1,711 'ORE'. Only base-side pairs.
+        pairs = _base_side_pairs(pairs, mint)
         if not pairs:
             return None
         # Sort by liquidity, return primary pair (highest liq)
@@ -11307,7 +11324,89 @@ async def _owner_pos_apply(rec: dict, decision: str, source: str, st: dict) -> b
     return await _owner_pos_take_over(rec, source, st, reason=f"owner said manage ({source})")
 
 
+# v1.0.6 takeover price guard. Entry for an adopted owner bag comes from a LIVE
+# Jupiter sell quote of the wallet's actual raw balance, never from the detection
+# mark. Dust (< OWNER_POS_ADOPT_MIN_USD) or no quote -> not adopted, just logged.
+# Detection mark vs live off by more than OWNER_POS_PRICE_MAX_RATIO -> repriced
+# to the live quote and flagged.
+OWNER_POS_ADOPT_MIN_USD   = float(os.getenv("OWNER_POS_ADOPT_MIN_USD", "1") or 1)
+OWNER_POS_PRICE_MAX_RATIO = float(os.getenv("OWNER_POS_PRICE_MAX_RATIO", "3") or 3)
+
+
+def _owner_pos_price_check(est_usd, live_usd) -> tuple:
+    """Pure: (adopt?, verdict). verdict in ok | repriced | dust | no_live_quote."""
+    if live_usd is None:
+        return False, "no_live_quote"
+    live_usd = float(live_usd)
+    if live_usd < OWNER_POS_ADOPT_MIN_USD:
+        return False, "dust"
+    try:
+        est = float(est_usd or 0)
+    except Exception:
+        est = 0.0
+    if est > 0:
+        hi, lo = max(est, live_usd), min(est, live_usd)
+        if lo <= 0 or hi / lo > OWNER_POS_PRICE_MAX_RATIO:
+            return True, "repriced"
+    return True, "ok"
+
+
+async def _owner_pos_live_quote(mint: str) -> Optional[dict]:
+    """Jupiter sell quote (mint -> SOL) of the wallet's actual raw balance, in USD.
+    Decimals come from the token account, price = usd / (raw / 10**decimals)."""
+    raw, dec = 0, None
+    for b in (await get_wallet_token_balances() or []):
+        if b.get("mint") == mint:
+            raw = int(float(b.get("amount_raw") or 0))
+            dec = b.get("decimals")
+            break
+    if raw <= 0 or dec is None:
+        return None
+    ui = raw / (10 ** int(dec))
+    q = await jupiter_quote_fresh(mint, SOL_MINT, raw, 1000)
+    if not q or not q.get("outAmount"):
+        return None
+    sol_out = int(q["outAmount"]) / 1e9
+    solusd = await get_sol_price_usd()
+    if not solusd:
+        return None
+    usd = sol_out * float(solusd)
+    return {"raw": raw, "decimals": int(dec), "amount_ui": ui, "sol_out": sol_out,
+            "usd": round(usd, 6), "price": (usd / ui) if ui > 0 else None}
+
+
 async def _owner_pos_take_over(rec: dict, source: str, st: dict, reason: str) -> bool:
+    live = None
+    try:
+        live = await _owner_pos_live_quote(rec["mint"])
+    except Exception as _lq:
+        _log(f"owner_position live quote err {rec.get('ticker')}: {_lq!r}", prefix="owner_pos")
+    adopt, verdict = _owner_pos_price_check(rec.get("est_usd"), (live or {}).get("usd"))
+    rec["live_usd"] = (live or {}).get("usd"); rec["price_verdict"] = verdict
+    if not adopt:
+        rec["state"] = "skipped_dust" if verdict == "dust" else "skipped_no_quote"
+        rec["decided_at"] = _now_iso(); rec["decided_by"] = source
+        _owner_pos_save(st)
+        _owner_pos_log("take_over_refused", rec, source=source, reason=reason, verdict=verdict,
+                       est_usd=rec.get("est_usd"), live_usd=rec.get("live_usd"))
+        try:
+            await send_telegram(f"\U0001F4BC {rec['ticker']}: not taking it over ({verdict}; live "
+                                f"value ${float(rec.get('live_usd') or 0):,.2f}). Left alone, logged only.")
+        except Exception:
+            pass
+        return False
+    if verdict == "repriced":
+        _owner_pos_log("price_flag", rec, est_usd=rec.get("est_usd"), live_usd=live["usd"],
+                       est_price=rec.get("est_price"), live_price=live["price"])
+    rec["est_price"], rec["est_usd"], rec["amount_ui"] = live["price"], round(live["usd"], 2), live["amount_ui"]
+    try:   # ledger row must carry the LIVE mark - promote books entry from it
+        _hd0 = _load_holdings()
+        if rec["mint"] in _hd0:
+            _hd0[rec["mint"]].update({"est_price": live["price"], "est_usd": round(live["usd"], 2),
+                                      "amount_ui": live["amount_ui"]})
+            _save_holdings(_hd0)
+    except Exception as _hu:
+        _log(f"owner_position holdings reprice err: {_hu}", prefix="owner_pos")
     try:   # the light check may find a bag before the sweep has put it on the ledger
         _hd = _load_holdings()
         if rec["mint"] not in _hd:

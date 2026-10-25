@@ -27,7 +27,23 @@ ns = {"os": os, "json": json, "asyncio": asyncio, "Path": Path, "_BOT_LOGS": tmp
       "_save_holdings": _save_holdings, "helius_rpc": helius_rpc, "fetch_token_data": fetch_token_data,
       "_safe_num": lambda v: float(v) if v not in (None, "") else None, "_WSOL_MINT": "WSOLmint",
       "HOT_WALLET_ADDR": "WALLET"}
-import os as _os; ns.setdefault("os", _os); _h = src.index("def _envv("); exec(src[_h:src.index("\n\n", _h)], ns)  # blank-as-unset helper used by the extracted code
+# v1.0.6 live-quote stubs: by default the live quote equals the ledger est_usd (SOL = $100).
+from typing import Optional
+LIVE, BAL = {}, {}   # mint -> live usd / ui balance overrides
+async def get_wallet_token_balances(*a):
+    rows = {m: float(h.get("amount_ui") or 1000) for m, h in HOLD.items()}
+    for acc in RPC.get("value") or []:
+        i = acc["account"]["data"]["parsed"]["info"]; rows.setdefault(i["mint"], i["tokenAmount"]["uiAmount"])
+    rows.update(BAL)
+    return [{"mint": m, "amount_raw": str(int(round(ui * 10**6))), "decimals": 6} for m, ui in rows.items()]
+async def jupiter_quote_fresh(i, o, amt, slip=1000):
+    rec = (ns["_owner_pos_state"]()["records"].get(i) or {})
+    usd = LIVE.get(i, float((HOLD.get(i) or {}).get("est_usd") or rec.get("est_usd") or 0))
+    return {"outAmount": str(int(usd / 100 * 1e9))}
+async def get_sol_price_usd(): return 100.0
+ns.update({"Optional": Optional, "SOL_MINT": "SOLmint", "get_wallet_token_balances": get_wallet_token_balances,
+           "jupiter_quote_fresh": jupiter_quote_fresh, "get_sol_price_usd": get_sol_price_usd})
+import os as _os; ns.setdefault("os", _os); _c = src.find("def _env_clean("); _c >= 0 and exec(src[_c:src.index("\n\n", _c)], ns); _h = src.find("def _envv("); _h >= 0 and exec(src[_h:src.index("\n\n", _h)], ns)  # blank-as-unset helper used by the extracted code
 exec(src[a:b], ns)
 with open(tmp / "execution_ledger.jsonl", "w") as f:
     f.write(json.dumps({"event": "buy", "mint": "BOTMINT111"}) + "\n")
@@ -87,5 +103,38 @@ async def main():
     assert "LITEMINT11" in HOLD and "LITEMINT11" in OPEN and POS["LITEMINT11"]["owner_no_time_exit"]
     for e in ("detected", "decision", "take_over", "timeout"):
         assert e in ev(), (e, ev())
+    # v1.0.6: the ORE case (2026-10-24). Mint SPCX..., 6 decimals, 0.00064 tokens. DexScreener's
+    # top pair had SPCX on the QUOTE side, so the light check marked it $2,674,141/token = $1,711.
+    ORE = "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb"
+    real = {"baseToken": {"address": ORE, "symbol": "SPCX"}, "quoteToken": {"symbol": "USDC"},
+            "priceUsd": "146.83", "liquidity": {"usd": 2949305}}
+    wrong = {"baseToken": {"address": "OREmintXXXX", "symbol": "ORE"}, "quoteToken": {"address": ORE},
+             "priceUsd": "2674141.089", "liquidity": {"usd": 9e6}}
+    _bsp = src.index("def _base_side_pairs("); exec(src[_bsp:src.index("\n\n\n", _bsp)], ns)
+    kept = ns["_base_side_pairs"]([wrong, real], ORE)
+    assert kept == [real], kept
+    assert round(0.00064 * float(kept[0]["priceUsd"]), 2) == 0.09
+    # takeover guard: the bad $1,711 record must NOT be adopted; live quote is ~$0.09 dust
+    st = ns["_owner_pos_state"]()
+    st["records"][ORE] = {"id": "op_ORE_SPCXxc_1", "mint": ORE, "ticker": "ORE", "est_usd": 1711.45,
+                          "amount_ui": 0.00064, "est_price": 2674141.089, "state": "pending"}
+    ns["_owner_pos_save"](st); BAL[ORE] = 0.00064; LIVE[ORE] = 0.09
+    ok = await ns["_owner_pos_take_over"](st["records"][ORE], "timeout", st, "no answer in 30 min")
+    r = ns["_owner_pos_state"]()["records"][ORE]
+    assert ok is False and ORE not in OPEN and r["state"] == "skipped_dust" and r["price_verdict"] == "dust", r
+    assert "take_over_refused" in ev()
+    # pure check
+    pc = ns["_owner_pos_price_check"]
+    assert pc(1711.45, 0.09) == (False, "dust") and pc(50, None) == (False, "no_live_quote")
+    assert pc(50, 48) == (True, "ok") and pc(1711.45, 40) == (True, "repriced")
+    # wild mismatch but real value -> adopted at the LIVE price, flagged
+    M2 = "BIGMINT111"; BAL[M2] = 10.0; LIVE[M2] = 40.0; HOLD[M2] = {"ticker": "BIG", "amount_ui": 10.0,
+        "est_price": 171.0, "est_usd": 1710.0, "class": "watch_bag"}
+    st = ns["_owner_pos_state"](); st["records"][M2] = {"id": "op_BIG_1", "mint": M2, "ticker": "BIG",
+        "est_usd": 1710.0, "amount_ui": 10.0, "est_price": 171.0, "state": "pending"}; ns["_owner_pos_save"](st)
+    assert await ns["_owner_pos_take_over"](st["records"][M2], "timeout", st, "t") is True
+    r2 = ns["_owner_pos_state"]()["records"][M2]
+    assert r2["price_verdict"] == "repriced" and abs(r2["est_price"] - 4.0) < 1e-6 and abs(HOLD[M2]["est_price"] - 4.0) < 1e-6
+    assert "price_flag" in ev()
     print("owner positions sniper: all tests passed")
 asyncio.run(main())
