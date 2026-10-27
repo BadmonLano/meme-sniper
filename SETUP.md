@@ -157,6 +157,7 @@ The wizard asks for a buy size and default SL/TP. They are live settings, not no
 |---|---|
 | `SNIPER_BUY_SIZE_SOL` | Replaces `SIZE_CAP_BASE_SOL` as the base entry cap (the tier ladder is scaled down to match, never up), and is used as the size when a buy signal has no `amount_sol`. The `MIN_BUY_SOL` floor, wallet floor and concentration checks still apply. |
 | `SNIPER_DEFAULT_SL_PCT` / `SNIPER_DEFAULT_TP_PCT` | Armed as the stop-loss / take-profit on every new position whose buy signal sets none (inside the `PROTECT_*` bounds). The agent can change them per trade with `set_protection`. |
+| `PROTECT_DEFAULT_STOP` | Default `true`. A flip bag with no valid agent stop sells on its default flip stop (`stop_loss_pct`) through the armed-protection path. Agent levels always win. |
 | `SNIPER_LEARNING_MODE` | Learning mode (below). Off by default. |
 | `SNIPER_LEARN_REST` | The wizard's "let the system learn the rest". With learning mode on, it also sends the agent a tune invitation after each learning step, so the other filters get tuned from the same results through the normal tune-response path. Off: learning only touches size and SL/TP. |
 

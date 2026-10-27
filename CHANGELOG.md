@@ -2,6 +2,14 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.8 (2026-10-27): protective orders never fail quiet
+SL/TP is enforced by the bot itself (no exchange order). This closes the gaps after a filled buy.
+- **Bad levels on a buy are reported:** SL/TP sent with a buy (or any position touch) that fails to arm (out of `PROTECT_*` bounds, bad values) now writes a high-priority `protection_missing` packet to the agent with the levels sent and the reason, a `protect:` log line, and a row in `bot_logs/protection_missing.jsonl`. Before, the `respond=False` arm failed silently.
+- **Default flip stop sells:** a flip bag with no valid agent stop now sells on its default stop (`params.stop_loss_pct`, same number and higher-cap floor the `sl_hit` alert uses) through the same armed-protection path: retries, `protective_order_fired` packet, plus the existing exit Telegram. Agent-armed levels always win; hold-mode and own launches are unchanged. Off-switch `PROTECT_DEFAULT_STOP=false`.
+- **Retries exhausted alert:** when a breached level has failed `PROTECT_MAX_RETRIES` (5) sells, the agent gets one high-priority `protective_order_exhausted` packet and a Telegram. The sell escalation ladder and stuck-bag watchdog are unchanged.
+- No size, threshold or other behavior changes.
+- Tests: `bots/tests/test_v108.py`.
+
 ## v1.0.7 (2026-10-25): six-token replay fixes (trending fast lane, clone runner, expired cards, parody lane, X profile, bundles)
 Built from a replay of six parody-ticker runners Sniper saw but never bought. All rules live in `bots/v107_rules.py`; each has an env off-switch (default on).
 - **Trending fast lane** (`TREND_FAST`): a coin holding top-3 trending for 1h+ becomes a full buy candidate (was 8h only), with pump.fun story, socials and social read. Knobs `TREND_FAST_TOP_N` 3, `TREND_FAST_HOURS` 1, `TREND_FAST_MAX_GAP_MIN` 40. Scale-in and the +20% trail apply.

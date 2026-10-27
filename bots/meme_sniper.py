@@ -1694,6 +1694,8 @@ PROTECT_MAX_RETRIES  = int(_envv("PROTECT_MAX_RETRIES", "5"))
 PROTECT_EXEC_BUFFER_S = float(_envv("PROTECT_EXEC_BUFFER_S", "30"))
 AGENT_INBOX_CADENCE_S = float(_envv("AGENT_INBOX_CADENCE_S", "300"))
 PROTECT_STALE_MIN    = float(_envv("PROTECT_STALE_MIN", "60"))
+# v1.0.8: a flip bag with no valid agent stop sells on its default flip stop (same armed path)
+PROTECT_DEFAULT_STOP = _envv("PROTECT_DEFAULT_STOP", "true").lower() in ("true", "1", "yes")
 # v14.1 batching: one positions digest per inbox check; sensor alerts on bags
 # with both levels armed fold into it instead of their own card.
 POSITIONS_DIGEST_S   = float(_envv("POSITIONS_DIGEST_S", os.getenv("AGENT_INBOX_CADENCE_S", "300")))
@@ -24953,7 +24955,9 @@ async def process_signal(sig: dict, pending_param_requests: dict) -> None:
         _ppos["last_agent_check_ts"] = _now_ts()
         if _sig_has_protection(sig):
             upsert_position(_pmint, _ppos)
-            await execute_set_protection(sig, respond=False)
+            _perr: list = []
+            if not await execute_set_protection(sig, respond=False, errors_out=_perr):
+                write_protection_missing_packet(_pmint, sig, _perr, source=action)   # v1.0.8: never silent
         else:
             if action in _POSITION_TOUCH_ACTIONS and not (_ppos.get("armed_protection") or {}):
                 _ppos.setdefault("protection_missing_since", _now_iso())
@@ -24971,7 +24975,9 @@ async def process_signal(sig: dict, pending_param_requests: dict) -> None:
     elif action == "buy":
         await execute_buy_signal(sig, pending_param_requests)
         if _sig_has_protection(sig) and sig.get("mint") in (load_positions() or {}):
-            await execute_set_protection(sig, respond=False)
+            _perr: list = []
+            if not await execute_set_protection(sig, respond=False, errors_out=_perr):
+                write_protection_missing_packet(sig.get("mint"), sig, _perr, source="buy")   # v1.0.8
     elif action == "sell":
         await execute_sell_signal(sig)
     elif action == "sell_holding":
@@ -30269,13 +30275,16 @@ def _sig_has_protection(sig: dict) -> bool:
         "stop_loss_pct", "sl_pct", "take_profit_pct", "tp_pct", "stop_price_usd", "take_profit_price_usd"))
 
 
-async def execute_set_protection(sig: dict, *, respond: bool = True) -> bool:
-    """action=set_protection: The agent arms (or updates / disarms) his SL/TP."""
+async def execute_set_protection(sig: dict, *, respond: bool = True, errors_out: Optional[list] = None) -> bool:
+    """action=set_protection: The agent arms (or updates / disarms) his SL/TP.
+    v1.0.8: errors_out (if given) collects the rejection reason so a respond=False caller can report it."""
+    _eo = errors_out if errors_out is not None else []
     sig_id = sig.get("signal_id") or _now_iso()
     mint = sig.get("mint")
     positions = load_positions() or {}
     position = positions.get(mint) if mint else None
     if not position:
+        _eo.append("no_position_for_mint")
         if respond:
             await write_signal_response(sig_id, "rejected", error="no_position_for_mint")
         return False
@@ -30289,6 +30298,7 @@ async def execute_set_protection(sig: dict, *, respond: bool = True) -> bool:
     try:
         p = _protect_parse(sig, position)
     except Exception as e:
+        _eo.append(f"bad_protection_values: {e}")
         if respond:
             await write_signal_response(sig_id, "rejected", error=f"bad_protection_values: {e}")
         return False
@@ -30300,6 +30310,7 @@ async def execute_set_protection(sig: dict, *, respond: bool = True) -> bool:
     if "sl_pct" not in p and "tp_pct" not in p:
         errs.append("need stop_loss_pct and/or take_profit_pct")
     if errs:
+        _eo.extend(errs)
         if respond:
             await write_signal_response(sig_id, "rejected", error="; ".join(errs))
         return False
@@ -30321,33 +30332,125 @@ async def execute_set_protection(sig: dict, *, respond: bool = True) -> bool:
     return True
 
 
-async def _check_armed_protection(mint: str, position: dict, pnl_pct: float) -> bool:
-    """Returns True if a agent-armed level fired a sell this tick."""
+_PROTECT_LEVEL_KEYS = ("stop_loss_pct", "sl_pct", "take_profit_pct", "tp_pct", "take_profit_sell_pct",
+                       "stop_price_usd", "take_profit_price_usd")
+
+
+def write_protection_missing_packet(mint: str, sig: dict, errors: list, *, source: str = "buy") -> None:
+    """v1.0.8: SL/TP sent with a buy (or another position touch) failed to arm. Tell the
+    agent which levels and why, instead of leaving the bag on the alert-only default."""
+    sig = sig or {}
+    sig_id = sig.get("signal_id") or sig.get("id") or ""
+    try:
+        pos = (load_positions() or {}).get(mint) or {}
+    except Exception:
+        pos = {}
+    ticker = pos.get("ticker") or sig.get("ticker") or "?"
+    sent = {k: sig.get(k) for k in _PROTECT_LEVEL_KEYS if sig.get(k) is not None}
+    reason = "; ".join(str(e) for e in (errors or [])) or "unknown"
+    _mode = str(pos.get("mode") or (pos.get("params") or {}).get("mode") or "flip").lower()
+    guard = ("default flip stop is guarding the bag and will sell" if (PROTECT_DEFAULT_STOP and _mode == "flip"
+             and not pos.get("own_launch")) else "NO protective sell is armed")
+    _log(f"protect: {ticker} SL/TP from {source} NOT armed ({reason}) sent={sent} - {guard}", prefix="protect")
+    try:
+        _append_jsonl(_BOT_LOGS / "protection_missing.jsonl",
+                      {"ts": _now_iso(), "mint": mint, "ticker": ticker, "action": source,
+                       "signal_id": sig_id, "sent_levels": sent, "reason": reason})
+    except Exception:
+        pass
+    try:
+        write_inbox_packet_generic({
+            "id": f"x_evt_protection_missing_{(mint or '')[:8]}_{int(_now_ts())}",
+            "type": "protection_missing",
+            "received_at": _now_iso(),
+            "priority": "high",
+            "originating_signal_id": sig_id,
+            "context": {"mint": mint, "ticker": ticker, "source": source, "originating_signal_id": sig_id,
+                        "sent_levels": sent, "reason": reason,
+                        "bounds": {"stop_loss_pct": [PROTECT_SL_MIN_PCT, PROTECT_SL_MAX_PCT],
+                                   "take_profit_pct_min": PROTECT_TP_MIN_PCT},
+                        "guard": guard,
+                        "note": "Your SL/TP did not arm. Re-send set_protection with valid levels."},
+        }, prefix="evt", identifier=f"protection_missing_{(mint or '')[:8]}")
+    except Exception as e:
+        _log(f"protection_missing packet err: {e}", prefix="protect")
+
+
+async def _protect_exhausted_alert(mint: str, position: dict, kind: str, pnl_pct: float, state_key: str) -> None:
+    """v1.0.8: an armed level is breached but PROTECT_MAX_RETRIES sells all failed. Say so once."""
+    st = position.get(state_key) or {}
+    if st.get(f"{kind}_exhausted_alerted_at"):
+        return
+    st[f"{kind}_exhausted_alerted_at"] = _now_iso()
+    position[state_key] = st
+    upsert_position(mint, position)
+    ticker = position.get("ticker", "?")
+    _log(f"protect: {ticker} {kind.upper()} breached at {pnl_pct:+.1f}% but {PROTECT_MAX_RETRIES} sell "
+         f"attempts failed - alerting the agent", prefix="protect")
+    try:
+        write_inbox_packet_generic({
+            "id": f"x_evt_protect_exhausted_{kind}_{mint[:8]}_{int(_now_ts())}",
+            "type": "protective_order_exhausted",
+            "received_at": _now_iso(),
+            "priority": "high",
+            "context": {"mint": mint, "ticker": ticker, "leg": kind, "pnl_pct": round(pnl_pct, 2),
+                        "attempts": int(st.get(f"{kind}_attempts") or 0), "max_retries": PROTECT_MAX_RETRIES,
+                        "source": "default_flip_stop" if state_key == "default_protection" else "agent_armed",
+                        "note": "The armed sell failed every retry. Bag is still open. Decide: sell, re-arm or hold."},
+        }, prefix="evt", identifier=f"protect_exhausted_{kind}_{mint[:8]}")
+    except Exception as e:
+        _log(f"protect exhausted packet err: {e}", prefix="protect")
+    try:
+        await send_telegram(f"🚨 <b>PROTECTIVE SELL FAILED — {ticker}</b>\n{kind.upper()} breached at "
+                            f"{pnl_pct:+.1f}%, {PROTECT_MAX_RETRIES} sell attempts failed. Bag still open.")
+    except Exception:
+        pass
+
+
+async def _check_armed_protection(mint: str, position: dict, pnl_pct: float,
+                                  params: Optional[dict] = None, mcap_now: float = 0) -> bool:
+    """Returns True if a agent-armed level (or, v1.0.8, the default flip stop) fired a sell this tick."""
     if not PROTECT_ENFORCE:
         return False
     ap = position.get("armed_protection") or {}
-    if not ap:
-        return False
+    state_key = "armed_protection"
     leg = None
     if ap.get("sl_pct") is not None and not ap.get("sl_fired_at") and pnl_pct <= -abs(float(ap["sl_pct"])):
         leg = ("sl", 100.0, "agent_armed_stop")
     elif ap.get("tp_pct") is not None and not ap.get("tp_fired_at") and pnl_pct >= float(ap["tp_pct"]):
         leg = ("tp", float(ap.get("tp_sell_pct") or 100.0), "agent_armed_take_profit")
+    if not leg and ap.get("sl_pct") is None and PROTECT_DEFAULT_STOP and params is not None \
+            and not position.get("own_launch") \
+            and str(position.get("mode") or params.get("mode") or "flip").lower() == "flip":
+        # v1.0.8: no valid agent stop -> the default flip stop (same number the sl_hit alert uses) sells.
+        _dsl = abs(float(params.get("stop_loss_pct", 20)))
+        try:
+            _dsl = max(_dsl, float(higher_cap_stop_floors(mcap_now, "flip")[0]))
+        except Exception:
+            pass
+        dp = position.get("default_protection") or {}
+        if dp.get("sl_pct") != _dsl:
+            dp["sl_pct"] = _dsl
+        position["default_protection"] = dp
+        if not dp.get("sl_fired_at") and pnl_pct <= -_dsl:
+            ap, state_key, leg = dp, "default_protection", ("sl", 100.0, "default_flip_stop")
     if not leg:
         return False
     if has_inflight_sell(mint):
         return True
     kind, pct, reason = leg
     if int(ap.get(f"{kind}_attempts") or 0) >= PROTECT_MAX_RETRIES:
+        await _protect_exhausted_alert(mint, position, kind, pnl_pct, state_key)
         return False
     ticker = position.get("ticker", "?")
     ap[f"{kind}_fired_at"] = _now_iso()
     ap[f"{kind}_fired_pnl_pct"] = round(pnl_pct, 2)
     ap[f"{kind}_attempts"] = int(ap.get(f"{kind}_attempts") or 0) + 1
-    position["armed_protection"] = ap
+    position[state_key] = ap
     position["exit_reason"] = reason
     upsert_position(mint, position)
-    _log(f"protect: {ticker} {reason} at {pnl_pct:+.1f}% (the agent set "
+    _who = "default flip stop" if state_key == "default_protection" else "the agent set"
+    _log(f"protect: {ticker} {reason} at {pnl_pct:+.1f}% ({_who} "
          f"{'-' + str(ap.get('sl_pct')) if kind == 'sl' else '+' + str(ap.get('tp_pct'))}%), selling {pct:.0f}%",
          prefix="protect")
     _pre_amt = float(position.get("token_amount") or 0)
@@ -30360,10 +30463,14 @@ async def _check_armed_protection(mint: str, position: dict, pnl_pct: float) -> 
     after = (load_positions() or {}).get(mint)
     landed = (after is None) or (float(after.get("token_amount") or 0) < _pre_amt * 0.99)
     if not landed and after is not None:
-        _ap = after.get("armed_protection") or {}
+        _ap = after.get(state_key) or {}
         _ap.pop(f"{kind}_fired_at", None)     # retry next tick, up to PROTECT_MAX_RETRIES
-        after["armed_protection"] = _ap
+        after[state_key] = _ap
         upsert_position(mint, after)
+    _note = ("This ran because you armed it. If the bag is still open, re-arm SL/TP for the remainder."
+             if state_key == "armed_protection" else
+             "This ran on the default flip stop because no valid SL was armed. If the bag is still open, "
+             "arm SL/TP for the remainder.")
     try:
         write_inbox_packet_generic({
             "id": f"x_evt_protect_{kind}_{mint[:8]}_{int(_now_ts())}",
@@ -30373,11 +30480,16 @@ async def _check_armed_protection(mint: str, position: dict, pnl_pct: float) -> 
             "context": {"mint": mint, "ticker": ticker, "leg": kind, "reason": reason,
                         "pnl_pct_at_fire": round(pnl_pct, 2), "sell_pct": pct,
                         "landed": landed, "your_levels": {k: ap.get(k) for k in ("sl_pct", "tp_pct", "tp_sell_pct")},
-                        "note": ("This ran because you armed it. If the bag is still open, re-arm "
-                                 "SL/TP for the remainder.")},
+                        "note": _note},
         }, prefix="evt", identifier=f"protect_{kind}_{mint[:8]}")
     except Exception:
         pass
+    if state_key == "default_protection":
+        try:   # keep the existing sl_hit-style Telegram for the default stop
+            await send_telegram(f"🚨 EXIT TRIGGER: {ticker}\nTRIGGER: sl_hit (default flip stop -{ap.get('sl_pct')}%) | "
+                                f"pnl {pnl_pct:+.1f}% | sold {pct:.0f}% | landed={landed}")
+        except Exception:
+            pass
     return True
 
 
@@ -30739,7 +30851,7 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
     # ── v14 PROTECTIVE ORDERS (2026-10-14) ───────────────────────────────────
     # The agent's own armed SL/TP. The bot does not decide anything here: it runs
     # the exact levels the agent set on his last touch, on the executable number.
-    if await _check_armed_protection(mint, position, pnl_pct):
+    if await _check_armed_protection(mint, position, pnl_pct, params, mcap_now):
         return
     if position.get("own_launch"):
         return   # v14.3: own launches sell only on the armed ladder / SL, no other exit packets
