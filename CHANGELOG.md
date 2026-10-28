@@ -2,6 +2,9 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.12 (2026-10-28): test suite collects cleanly
+- Tests only: standalone-script test files no longer run side effects at import, so pytest collects (was 2 collection errors). Fixed a stale own-launch treasury default expectation (50 -> shipped 0). 115 tests pass. No trading code or defaults changed.
+
 ## v1.0.11 (2026-10-28): cursor.directory safety rule
 - `rules/meme-sniper-safety.mdc: cursor.directory Rule component (paper default, no secrets, respect caps, confirm live orders). Docs/packaging only; no trading code or defaults changed.`
 
