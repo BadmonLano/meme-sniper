@@ -17,6 +17,8 @@ Sniper can be run by Grok Bot, Muse, or an agent from any of the larger SI compa
 ## Contents
 
 - [Works with](#works-with)
+- [Glossary](#glossary)
+- [Paper quick start (dry run)](#paper-quick-start-dry-run)
 - [What Sniper is](#what-sniper-is)
 - [Read this first: safety defaults](#read-this-first-safety-defaults)
 - [Safety caps and your settings](#safety-caps-and-your-settings)
@@ -48,6 +50,34 @@ Four pieces that work together:
 Around those: an SI "brain" (Grok, OpenAI, Claude, any OpenAI-compatible endpoint, or local Ollama), alerts to your phone, a console dashboard, nightly self-review, and skill files in `skills/` that teach your agent how to trade.
 
 **Who it's for:** people who run an SI agent that can read files, run Python and keep a loop going, and who understand Solana memecoins and their risks.
+
+## Glossary
+
+- **SI agent:** your AI agent (hosted or local) that reads packets, decides and writes signals. Sniper executes and guards; the agent decides.
+- **Packet / card:** a JSON file the bots write to `inbox/` (or `json_relay/`) for the agent: candidates, rug-check verdicts, acks, alerts.
+- **Signal:** what the agent writes back to `json_relay/agent_signals.json` (buy, sell, set_protection_batch).
+- **Ack / confirmation:** the bot's answer to every signal (`signal_ack_*`, `trade_confirmation_*` or `signal_failure_*` with a reason), echoing your `request_id`.
+- **Rug check (ca-intel):** the vet of a contract address before any buy: authorities, holders, liquidity, creator history.
+- **Flip / hold:** position modes. Flip trades in and out on stops and targets; hold keeps a long-term bag.
+- **Trail:** a trailing stop that arms after a gain and exits after a set giveback.
+- **Scale-in:** a small first buy, then the rest only if liquidity and price hold.
+- **Launch rail:** the gated path that launches your own token with a GitHub repo attached. Off by default.
+- **Paper mode:** `SNIPER_PAPER_MODE=1`, fills simulated at real quotes, nothing signed or sent.
+- **Inbox lanes:** the recurring agent loops in `automations/` that drain `inbox/` into `inbox_results/`.
+
+## Paper quick start (dry run)
+
+Sniper has a paper mode, but it still needs a wallet key and an RPC to boot (they are required keys), so there is no fully keyless start. Use a **brand-new burner wallet with no funds**: in paper mode nothing is signed or sent, and fills come from a simulated balance (`SNIPER_PAPER_START_SOL`, default 1.0).
+
+```
+git clone https://github.com/BadmonLano/meme-sniper.git
+cd meme-sniper
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp bots/.env.example bots/.env                       # Windows: copy
+```
+
+In `bots/.env` set `SNIPER_PAPER_MODE=1`, the burner's `HOT_WALLET_PRIVATE_KEY` / `HOT_WALLET_ADDRESS`, an `RPC_URL` (Solana's free public `https://api.mainnet-beta.solana.com` works for a test) and a brain (`GROK_API_KEY` or local Ollama). Then `python bots/sniper.py --smoke` and `python bots/sniper.py`. Paper state lives in `bot_logs/paper/`. Going live later needs an explicit `LIVE` confirmation in the wizard.
 
 ## Read this first: safety defaults
 
@@ -309,55 +339,10 @@ Ideas and fixes are welcome. Everything is reviewed by the repo owner. **Nothing
 
 Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Fee-wallet vault exception (v1.0.3)
-
-Some pump.fun launches look like a bundle but aren't. The creator buys most of the supply at creation, then **transfers** (not sells) a big slice to one wallet that is also the coin's creator-fee recipient and has never signed a transaction. Then the creator sells its small remainder. KIMCHI (Oct 20, 2026) did exactly this and ran to about $40M. The launch-spike rule ($100k in under 10 min) used to skip these.
-
-Sniper now treats a launch as a **vault** only when all four checks pass:
-1. The creator made an SPL transfer of at least `VAULT_MIN_TRANSFER_PCT` (20%) to one wallet.
-2. That wallet is the pump.fun creator-fee recipient.
-3. That wallet has zero outgoing (self-signed) transactions.
-4. The creator is done selling: under `VAULT_CREATOR_DONE_PCT` (5%) left, or no sell for `VAULT_CREATOR_QUIET_S` (60s).
-
-When it's a vault: the vault is left out of top-10 math (`float_top10_pct` on the card), the launch-spike kill is skipped, and every other hard cap still applies (size cap, 0.1 SOL floor, drawdown, liquidity floor, authorities). Entry is a fixed `VAULT_ENTRY_SOL` (0.1). Exits: **instant exit if the vault signs any transaction**, a -25% stop, 50% off at 3x, then a 35% trail.
-
-Turn it off with `VAULT_EXCEPTION=false`. If any data is missing (RPC down, pump.fun API down), the check fails and the normal rules apply.
-
-## Celebrity-post rule (v1.0.4)
-
-When a verified X account with a big following (`CELEB_MIN_FOLLOWERS`, 250k) posts a pump.fun CA, an agent or X Intel can send a buy signal with `celeb_post: {handle, followers, verified, post_id, posted_ts}`. Sniper then:
-- **Skips the coin** if the creator was funded before launch by a wallet that paid several wallets in one transaction (`CELEB_FANOUT_MIN`, 3), or if the same cluster launched another coin within `CELEB_CLUSTER_WINDOW_H` (24h).
-- **Waits** until the creator has fully sold (under `CELEB_CREATOR_MAX_PCT`, 1%).
-- **Enters** at a fixed `CELEB_ENTRY_SOL` (0.1). Exits: half off at 3x, the rest on a 35% trail, -25% stop.
-- If any data is missing, it doesn't enter. Turn it off with `CELEB_POST_RULE=false`.
-
-FLOYD (Oct 13) would have been skipped on both checks: its creator was funded by a fan-out wallet and also launched $MONEY.
-
-## Scale-in, trail, exit logging, watchdog (v1.0.4)
-
-- **Scale-in:** a normal buy goes in at `SCALE_IN_FIRST_SOL` (0.05) first. After `SCALE_IN_ADD_AFTER_S` (300s) Sniper adds the rest, but only if the position is still open, liquidity is at least `SCALE_IN_LIQ_KEEP_PCT` (80%) of what it was at entry, and price is no more than `SCALE_IN_MAX_DRAWDOWN_PCT` (15%) below entry. The planned total still has to clear the 0.1 SOL floor. Vault and celeb entries are never split. Off: `SCALE_IN=false`.
-- **Trail:** it arms at +20% (`DEFAULT_TRAIL_ACTIVATE_PCT`) and exits after giving back `TRAIL_GIVEBACK_PTS` (15) points of PnL (peak +40% -> exit at +25%). Set it to 0 to go back to the old % trail. Vault and celeb positions keep their 35% trail.
-- **Exit logging:** the ledger and the autopsy now use one resolver for exit type, and the monitor's last trigger fills it in, so "manual" and "unknown_exit" stop showing up for monitored exits. The post-exit peak is matched by exit tx or a lone row within 6h, and the same numbers now go into the ledger as a `post_exit` row.
-- **Watchdog:** if the position monitor's heartbeat is older than `WATCHDOG_STALE_S` (300s) while positions are open, you get an alert through your alerts channel. It repeats every `WATCHDOG_REALERT_S` (30 min) and sends a "recovered" note when the monitor comes back. It runs inside the bot, and you can also run `python bots/sub-bots/monitor_watchdog.py` separately to catch a dead process. Off: `MONITOR_WATCHDOG=false`.
-
-## celeb_post cards: X Intel to agent to Sniper (v1.0.5)
-
-When X Intel, the bundled watcher, or any agent sees a verified X account with 250k+ followers post a Solana CA, it writes a **card** to `json_relay/celeb_post_cards.json` (schema `celeb_post_card/1`, see `bots/celeb_card.py`). **Nothing buys automatically.** An agent reads the card, decides, and only if it wants the trade writes a normal buy to `json_relay/agent_signals.json` with the card's `celeb_post` block attached. Sniper's celeb rule then re-checks on-chain before it buys.
-
-Each card carries `celeb_post` {handle, followers, verified, post_id, posted_ts, text, url} plus context:
-- `shill_history`: how many other CAs this account has posted before.
-- `post_deleted`: true, false, or null (null means not rechecked yet).
-- `creator_sold` and `creator_balance_pct`.
-- `funding_cluster`: clean, fanout_funder, second_coin or unknown.
-- `rule_preview`: what the celeb rule says right now.
-
-`decision` is always `"agent"`. Any unknown means risk, not clean.
-
-**Optional watcher:** `python bots/sub-bots/x_celeb_watch.py` (add `--once` for a single pass). It uses your own `X_BEARER_TOKEN` from `bots/.env`. Watch specific accounts with `CELEB_WATCH_HANDLES`, or a search with `CELEB_WATCH_QUERY` (set it to `off` to disable). It polls every `CELEB_WATCH_INTERVAL_S` (180s), backs off when X rate-limits, skips posts it has already seen, and rechecks recent posts for deletion. With `SOLANA_RPC_URL` or `HELIUS_RPC_URL` set, it also fills in the on-chain context. No token or an API error means no cards. Off: `CELEB_WATCH=false`.
-
 ## Versions and releases
 
-- Versions look like `v1.0.5` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Feature details for each version (vault exception, celebrity-post rule, scale-in/trail/watchdog, celeb_post cards and later) are in [`CHANGELOG.md`](CHANGELOG.md).
+- Versions look like `v1.0.9` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.

@@ -2,6 +2,9 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.9 (2026-10-27)
+- Docs parity with Perps: glossary, paper quick start, README version sections moved to CHANGELOG, plugin manifests at the real version, release notes file. No code changes.
+
 ## v1.0.5 (2026-10-24): celeb_post cards for agents
 - New relay card `celeb_post_card/1` (`bots/celeb_card.py`) in `json_relay/celeb_post_cards.json`: celeb_post {handle, followers, verified, post_id, posted_ts, text, url} plus shill history, deleted-post flag, creator-sold status, funding-cluster verdict and a rule preview. The agent decides; nothing auto-buys.
 - Optional watcher `bots/sub-bots/x_celeb_watch.py` (your own X bearer token): skips posts it has seen, backs off on rate limits, rechecks for deletes, and emits nothing on errors. Off-switch `CELEB_WATCH`.

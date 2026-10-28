@@ -2,6 +2,13 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.9 (2026-10-27): docs and packaging parity with Perps
+Docs only. No trading code or defaults changed.
+- README: glossary, paper quick start (dry run; a burner key and RPC are still required to boot), Versions pointer.
+- README version sections v1.0.3–v1.0.5 moved into this changelog under their versions.
+- Plugin manifests now report the real version.
+- `docs/RELEASE_NOTES_v1.0.9.md`.
+
 ## v1.0.8 (2026-10-27): protective orders never fail quiet
 SL/TP is enforced by the bot itself (no exchange order). This closes the gaps after a filled buy.
 - **Bad levels on a buy are reported:** SL/TP sent with a buy (or any position touch) that fails to arm (out of `PROTECT_*` bounds, bad values) now writes a high-priority `protection_missing` packet to the agent with the levels sent and the reason, a `protect:` log line, and a row in `bot_logs/protection_missing.jsonl`. Before, the `respond=False` arm failed silently.
@@ -34,6 +41,21 @@ Built from a replay of six parody-ticker runners Sniper saw but never bought. Al
 - The meme-hunter skill now covers how to reason on celeb_post cards.
 - Tests: `bots/tests/test_v105.py`.
 
+### celeb_post cards: X Intel to agent to Sniper
+
+When X Intel, the bundled watcher, or any agent sees a verified X account with 250k+ followers post a Solana CA, it writes a **card** to `json_relay/celeb_post_cards.json` (schema `celeb_post_card/1`, see `bots/celeb_card.py`). **Nothing buys automatically.** An agent reads the card, decides, and only if it wants the trade writes a normal buy to `json_relay/agent_signals.json` with the card's `celeb_post` block attached. Sniper's celeb rule then re-checks on-chain before it buys.
+
+Each card carries `celeb_post` {handle, followers, verified, post_id, posted_ts, text, url} plus context:
+- `shill_history`: how many other CAs this account has posted before.
+- `post_deleted`: true, false, or null (null means not rechecked yet).
+- `creator_sold` and `creator_balance_pct`.
+- `funding_cluster`: clean, fanout_funder, second_coin or unknown.
+- `rule_preview`: what the celeb rule says right now.
+
+`decision` is always `"agent"`. Any unknown means risk, not clean.
+
+**Optional watcher:** `python bots/sub-bots/x_celeb_watch.py` (add `--once` for a single pass). It uses your own `X_BEARER_TOKEN` from `bots/.env`. Watch specific accounts with `CELEB_WATCH_HANDLES`, or a search with `CELEB_WATCH_QUERY` (set it to `off` to disable). It polls every `CELEB_WATCH_INTERVAL_S` (180s), backs off when X rate-limits, skips posts it has already seen, and rechecks recent posts for deletion. With `SOLANA_RPC_URL` or `HELIUS_RPC_URL` set, it also fills in the on-chain context. No token or an API error means no cards. Off: `CELEB_WATCH=false`.
+
 ## v1.0.4 (2026-10-24): celebrity-post rule, scale-in, trail, exit logging, watchdog
 - **Celebrity-post rule** (`bots/celeb_post.py`, `CELEB_POST_RULE`): enters on a verified, big-account CA post only after the creator has fully sold. Skips fan-out-funded creators and clusters that launch a second coin. Fixed 0.1 SOL, half off at 3x, 35% trail, -25% stop. Missing data means no entry. FLOYD replay test included.
 - **Scale-in** (`bots/scale_in.py`, `SCALE_IN`): 0.05 SOL first leg, then the rest after 5 min if liquidity and price hold.
@@ -42,9 +64,40 @@ Built from a replay of six parody-ticker runners Sniper saw but never bought. Al
 - **Watchdog** (`bots/sub-bots/monitor_watchdog.py`, `MONITOR_WATCHDOG`): alerts when the monitor goes stale with open positions.
 - Tests: `bots/tests/test_v104.py`.
 
+### Celebrity-post rule
+
+When a verified X account with a big following (`CELEB_MIN_FOLLOWERS`, 250k) posts a pump.fun CA, an agent or X Intel can send a buy signal with `celeb_post: {handle, followers, verified, post_id, posted_ts}`. Sniper then:
+- **Skips the coin** if the creator was funded before launch by a wallet that paid several wallets in one transaction (`CELEB_FANOUT_MIN`, 3), or if the same cluster launched another coin within `CELEB_CLUSTER_WINDOW_H` (24h).
+- **Waits** until the creator has fully sold (under `CELEB_CREATOR_MAX_PCT`, 1%).
+- **Enters** at a fixed `CELEB_ENTRY_SOL` (0.1). Exits: half off at 3x, the rest on a 35% trail, -25% stop.
+- If any data is missing, it doesn't enter. Turn it off with `CELEB_POST_RULE=false`.
+
+FLOYD (Oct 13) would have been skipped on both checks: its creator was funded by a fan-out wallet and also launched $MONEY.
+
+### Scale-in, trail, exit logging, watchdog
+
+- **Scale-in:** a normal buy goes in at `SCALE_IN_FIRST_SOL` (0.05) first. After `SCALE_IN_ADD_AFTER_S` (300s) Sniper adds the rest, but only if the position is still open, liquidity is at least `SCALE_IN_LIQ_KEEP_PCT` (80%) of what it was at entry, and price is no more than `SCALE_IN_MAX_DRAWDOWN_PCT` (15%) below entry. The planned total still has to clear the 0.1 SOL floor. Vault and celeb entries are never split. Off: `SCALE_IN=false`.
+- **Trail:** it arms at +20% (`DEFAULT_TRAIL_ACTIVATE_PCT`) and exits after giving back `TRAIL_GIVEBACK_PTS` (15) points of PnL (peak +40% -> exit at +25%). Set it to 0 to go back to the old % trail. Vault and celeb positions keep their 35% trail.
+- **Exit logging:** the ledger and the autopsy now use one resolver for exit type, and the monitor's last trigger fills it in, so "manual" and "unknown_exit" stop showing up for monitored exits. The post-exit peak is matched by exit tx or a lone row within 6h, and the same numbers now go into the ledger as a `post_exit` row.
+- **Watchdog:** if the position monitor's heartbeat is older than `WATCHDOG_STALE_S` (300s) while positions are open, you get an alert through your alerts channel. It repeats every `WATCHDOG_REALERT_S` (30 min) and sends a "recovered" note when the monitor comes back. It runs inside the bot, and you can also run `python bots/sub-bots/monitor_watchdog.py` separately to catch a dead process. Off: `MONITOR_WATCHDOG=false`.
+
 ## v1.0.3 (2026-10-24): fee-wallet vault exception
 - New `bots/fee_vault.py`: tells a creator parking supply in its own fee wallet apart from a sniper bundle (transfer vs buy, fee-recipient match, receiver never signed, creator done selling).
 - Vault launches skip the launch-spike $100k kill, leave the vault out of top-10 math, enter at a fixed 0.1 SOL, and exit on any vault move, a -25% stop, 50% off at 3x, and a 35% trail. Off-switch: `VAULT_EXCEPTION=false`.
 - Note: Drop 2 holder limits (`TOP10_MAX_PCT`, `DEV_MAX_HOLDING_PCT`, `HOLDERS_MIN_COUNT`) are advisory. They show on the card and never block a buy.
 - Tests: `bots/tests/test_fee_vault.py` (KIMCHI replay from public data).
+
+### Fee-wallet vault exception
+
+Some pump.fun launches look like a bundle but aren't. The creator buys most of the supply at creation, then **transfers** (not sells) a big slice to one wallet that is also the coin's creator-fee recipient and has never signed a transaction. Then the creator sells its small remainder. KIMCHI (Oct 20, 2026) did exactly this and ran to about $40M. The launch-spike rule ($100k in under 10 min) used to skip these.
+
+Sniper now treats a launch as a **vault** only when all four checks pass:
+1. The creator made an SPL transfer of at least `VAULT_MIN_TRANSFER_PCT` (20%) to one wallet.
+2. That wallet is the pump.fun creator-fee recipient.
+3. That wallet has zero outgoing (self-signed) transactions.
+4. The creator is done selling: under `VAULT_CREATOR_DONE_PCT` (5%) left, or no sell for `VAULT_CREATOR_QUIET_S` (60s).
+
+When it's a vault: the vault is left out of top-10 math (`float_top10_pct` on the card), the launch-spike kill is skipped, and every other hard cap still applies (size cap, 0.1 SOL floor, drawdown, liquidity floor, authorities). Entry is a fixed `VAULT_ENTRY_SOL` (0.1). Exits: **instant exit if the vault signs any transaction**, a -25% stop, 50% off at 3x, then a 35% trail.
+
+Turn it off with `VAULT_EXCEPTION=false`. If any data is missing (RPC down, pump.fun API down), the check fails and the normal rules apply.
 
