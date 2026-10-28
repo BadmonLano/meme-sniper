@@ -74,5 +74,13 @@ async def main() -> int:
     return 0 if ok else 1
 
 
+def test_llm_providers():
+    saved = dict(os.environ)
+    try:
+        assert asyncio.run(main()) == 0
+    finally:
+        os.environ.clear(); os.environ.update(saved)
+
+
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))

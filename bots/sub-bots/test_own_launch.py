@@ -11,7 +11,7 @@ class Core(unittest.TestCase):
     def test_defaults(self):
         s = c.settings_from_env({})
         self.assertEqual((s["mode"], s["treasury_pct"], s["sl_pct"], s["lock_mode"], s["fee_claim_h"]),
-                         ("hold", 50.0, None, "off", 24.0))
+                         ("hold", 0.0, None, "off", 24.0))  # shipped default: .env.example + SKILL.md say 0
         self.assertEqual(s["ladder"], [(2.0, 25.0), (5.0, 25.0), (10.0, 25.0)])
 
     def test_bad_values_fall_back(self):

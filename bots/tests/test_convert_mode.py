@@ -70,6 +70,12 @@ def run(path: str) -> dict:
         r["no_moonbag_after_demote"] = False; r["moon_err"] = str(e)[:120]
     return r
 
+def test_engine_file():
+    from pathlib import Path
+    res = run(str(Path(__file__).resolve().parents[1] / "meme_sniper.py"))
+    assert all(v for k, v in res.items() if not k.endswith("_err")), res
+
+
 if __name__ == "__main__":
     res = run(sys.argv[1])
     print(json.dumps(res, indent=1))

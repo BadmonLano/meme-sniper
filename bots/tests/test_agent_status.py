@@ -45,5 +45,11 @@ def run(path: str) -> dict:
     r["echo_ca_rows"] = '"request_id": req.get("request_id"),' in src
     return r
 
+def test_engine_file():
+    from pathlib import Path
+    res = run(str(Path(__file__).resolve().parents[1] / "meme_sniper.py"))
+    assert all(res.values()), res
+
+
 if __name__ == "__main__":
     res = run(sys.argv[1]); print(json.dumps(res, indent=1)); sys.exit(0 if all(res.values()) else 1)

@@ -29,7 +29,6 @@ async def _mocked(name, prompt, **kw):
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as cl:
         kw["client"] = cl
         return await _real(name, prompt, **kw)
-L.generate = _mocked
 
 src = open(os.path.join(HERE, "meme_sniper.py"), encoding="utf-8").read()
 want = {"_llm_split", "_brain_ready", "grok_generate", "grok_generate_with_image"}
@@ -113,4 +112,21 @@ async def main():
     print("ALL PASS" if not fails else f"{len(fails)} FAIL")
     return 1 if fails else 0
 
-sys.exit(asyncio.run(main()))
+def _run_patched():
+    """Patch llm_providers.generate onto the mock transport only for this run, then restore it
+    (and the env), so importing this file under pytest has no side effects on other tests."""
+    saved_env, saved_gen = dict(os.environ), L.generate
+    L.generate = _mocked
+    try:
+        return asyncio.run(main())
+    finally:
+        L.generate = saved_gen
+        os.environ.clear(); os.environ.update(saved_env)
+
+
+def test_sniper_routing():
+    assert _run_patched() == 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run_patched())
