@@ -2,6 +2,10 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.14 (2026-10-28): outside resources, numbers first
+- `skills/meme-hunter/SKILL.md`: new section "Deciding Whether To Buy (outside resources, numbers first)", matching Perps. Agents with web/X search may check DexScreener/Birdeye/Solscan, holders, LP, dev wallet, flows, X and news before a buy; raw numbers first, sources with age in the reason; never overrides hard gates, owner rules or caps. `skills/ca-intel/SKILL.md` references it.
+- Docs/skills only; no trading code or defaults changed. (v1.0.13 is reserved.)
+
 ## v1.0.12 (2026-10-28)
 - Test collection fix; 115 tests pass. Tests only.
 

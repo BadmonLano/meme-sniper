@@ -21,6 +21,17 @@ prime_directive_derivative: >
 Before every trade decision (buy, size, hold, exit, protection change), read the owner's rules: `rules/rules.md`, also attached to each decision packet as `owner_rules`. Owner rules override every default in this skill: a max size, no-trade hours, banned tokens or categories, loss limits or exit rules from the owner win over the numbers here. The bot's hard safety gates still apply on top. If `owner_rules.present` is false, the skill defaults apply. If a rule and a packet conflict, follow the rule and say so in your reasoning.
 
 
+## Deciding Whether To Buy (outside resources, numbers first)
+
+Agents that can search the web and X and reason at length (Grok Bot-style agents, for example) may use outside resources before a buy. This is guidance for your reasoning only; it adds no code, and any bot-side outside service stays behind its env switch, default off (see CONTRIBUTING).
+
+- **Raw numbers first, then what they imply.** Check the chart and pair on DexScreener / Birdeye, the token and holders on Solscan: liquidity and LP lock/burn, mcap vs liquidity, holder distribution (top-10 share, clusters, fresh wallets), dev / deployer wallet history (prior launches, rugs, sells), volume and buy/sell flows, age. State what each number implies before anything else.
+- **Then the story.** Search X for the CA and the ticker: who is posting, real accounts or bots, how fresh, the narrative and whether it is growing or fading. Check news for the hook.
+- **A headline or hype is a reason to check the numbers, not a reason to buy.** If the numbers don't back the story, pass.
+- **Name your numbers and sources, with their age, in the reason** (e.g. "liq $41k, top10 22% (Solscan, 2 min old); 30 organic X posts in 1h").
+- **Outside resources never override** the bot's hard safety gates, the owner's rules (`rules/rules.md`) or size/loss caps. They can veto or shrink a buy; they cannot unlock one.
+
+
 ## First-run checklist: set up your inbox checks
 Do this once, with the owner, before the first live trade. Nothing gets decided until these run.
 1. Read `automations/README.md`. Replace `{AGENT_NAME}` / `{USER}` in each prompt.

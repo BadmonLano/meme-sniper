@@ -2,6 +2,10 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.14 (2026-10-28): outside resources, numbers first
+- `skills/meme-hunter/SKILL.md`: new section "Deciding Whether To Buy (outside resources, numbers first)", matching Perps. Agents with web/X search may check DexScreener/Birdeye/Solscan, holders, LP, dev wallet, flows, X and news before a buy; raw numbers first, sources with age in the reason; never overrides hard gates, owner rules or caps. `skills/ca-intel/SKILL.md` references it.
+- Docs/skills only; no trading code or defaults changed. (v1.0.13 is reserved.)
+
 ## v1.0.12 (2026-10-28): test suite collects cleanly
 - Tests only: standalone-script test files no longer run side effects at import, so pytest collects (was 2 collection errors). Fixed a stale own-launch treasury default expectation (50 -> shipped 0). 115 tests pass. No trading code or defaults changed.
 

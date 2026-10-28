@@ -153,6 +153,8 @@ Do not claim the packet ran pattern_engine, kol chatter, or sl_registry. Those s
 
 ### Layer 4 - the agent's read Always ends with a take. Packet is evidence, not the decision.
 
+Before a buy, outside checks (DexScreener/Birdeye/Solscan, holders, LP, dev wallet, X search for CA/ticker, news) follow `skills/meme-hunter/SKILL.md` "Deciding Whether To Buy (outside resources, numbers first)": numbers first, sources with age, never over gates, owner rules or caps.
+
 Telegram card (short)
 For a scanner-hit ask, lead with scanner_history, then live tape. If a prior packet exists, print FIRST SEEN vs NOW: first_ts, first_mcap, now_mcap, multiple, refire yes/no, prior_action. If none exists, write first_seen: none in inbox/done. That blank is honest, not a green light.
 
