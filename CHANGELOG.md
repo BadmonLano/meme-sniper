@@ -2,6 +2,9 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.11 (2026-10-28): cursor.directory safety rule
+- `rules/meme-sniper-safety.mdc: cursor.directory Rule component (paper default, no secrets, respect caps, confirm live orders). Docs/packaging only; no trading code or defaults changed.`
+
 ## v1.0.10 (2026-10-27): smoke check fully green
 - `bots/settings_labels.json`: labels, sections and units for the 37 settings added in v1.0.3–v1.0.5 (vault exception, celebrity-post rule, scale-in, trail giveback, watchdog, celeb watcher). They were in `.env.example` but had no label, so `--smoke` failed its labels check (and the final summary line with it).
 - Display only: no trading code, values or defaults changed.

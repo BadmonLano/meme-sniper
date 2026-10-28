@@ -2,6 +2,9 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.11 (2026-10-28)
+- Safety rule `rules/meme-sniper-safety.mdc` for cursor.directory. Docs only.
+
 ## v1.0.10 (2026-10-27)
 - Settings labels for the v1.0.3–v1.0.5 keys; `--smoke` fully passes. Display only.
 

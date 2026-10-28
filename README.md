@@ -342,7 +342,7 @@ Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Versions and releases
 
 - Feature details for each version (vault exception, celebrity-post rule, scale-in/trail/watchdog, celeb_post cards and later) are in [`CHANGELOG.md`](CHANGELOG.md).
-- Versions look like `v1.0.10` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Versions look like `v1.0.11` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.
