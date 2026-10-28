@@ -2,6 +2,9 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.10 (2026-10-27)
+- Settings labels for the v1.0.3–v1.0.5 keys; `--smoke` fully passes. Display only.
+
 ## v1.0.9 (2026-10-27)
 - Docs parity with Perps: glossary, paper quick start, README version sections moved to CHANGELOG, plugin manifests at the real version, release notes file. No code changes.
 

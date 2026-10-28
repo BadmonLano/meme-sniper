@@ -2,6 +2,10 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.10 (2026-10-27): smoke check fully green
+- `bots/settings_labels.json`: labels, sections and units for the 37 settings added in v1.0.3–v1.0.5 (vault exception, celebrity-post rule, scale-in, trail giveback, watchdog, celeb watcher). They were in `.env.example` but had no label, so `--smoke` failed its labels check (and the final summary line with it).
+- Display only: no trading code, values or defaults changed.
+
 ## v1.0.9 (2026-10-27): docs and packaging parity with Perps
 Docs only. No trading code or defaults changed.
 - README: glossary, paper quick start (dry run; a burner key and RPC are still required to boot), Versions pointer.

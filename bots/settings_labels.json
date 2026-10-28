@@ -1589,6 +1589,228 @@
       "section": "Exits & trailing",
       "unit": "bool",
       "src": "env"
+    },
+    "VAULT_EXCEPTION": {
+      "label": "Fee-wallet vault exception",
+      "section": "Entry filters",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "VAULT_MIN_TRANSFER_PCT": {
+      "label": "Vault: min creator transfer to one wallet",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "VAULT_CREATOR_DONE_PCT": {
+      "label": "Vault: creator done when holding under",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "VAULT_CREATOR_QUIET_S": {
+      "label": "Vault: creator done after no sell for",
+      "section": "Entry filters",
+      "unit": "s",
+      "src": "env"
+    },
+    "VAULT_MAX_AGE_MIN": {
+      "label": "Vault: max coin age",
+      "section": "Entry filters",
+      "unit": "min",
+      "src": "env"
+    },
+    "VAULT_ENTRY_SOL": {
+      "label": "Vault entry size",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "VAULT_STOP_PCT": {
+      "label": "Vault stop loss",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "VAULT_PARTIAL_AT_X": {
+      "label": "Vault partial take at",
+      "section": "Exits & trailing",
+      "unit": "x",
+      "src": "env"
+    },
+    "VAULT_PARTIAL_PCT": {
+      "label": "Vault partial take size",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "VAULT_TRAIL_PCT": {
+      "label": "Vault trailing stop",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "CELEB_POST_RULE": {
+      "label": "Celebrity-post rule",
+      "section": "Entry filters",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "CELEB_MIN_FOLLOWERS": {
+      "label": "Celeb: min followers",
+      "section": "Entry filters",
+      "unit": "followers",
+      "src": "env"
+    },
+    "CELEB_REQUIRE_VERIFIED": {
+      "label": "Celeb: require verified account",
+      "section": "Entry filters",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "CELEB_CREATOR_MAX_PCT": {
+      "label": "Celeb: wait until creator holds under",
+      "section": "Entry filters",
+      "unit": "%",
+      "src": "env"
+    },
+    "CELEB_FANOUT_MIN": {
+      "label": "Celeb: fan-out funder skip at wallets",
+      "section": "Entry filters",
+      "unit": "wallets",
+      "src": "env"
+    },
+    "CELEB_CLUSTER_WINDOW_H": {
+      "label": "Celeb: same-cluster second coin window",
+      "section": "Entry filters",
+      "unit": "h",
+      "src": "env"
+    },
+    "CELEB_MAX_POST_AGE_MIN": {
+      "label": "Celeb: max post age",
+      "section": "Entry filters",
+      "unit": "min",
+      "src": "env"
+    },
+    "CELEB_ENTRY_SOL": {
+      "label": "Celeb entry size",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "CELEB_STOP_PCT": {
+      "label": "Celeb stop loss",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "CELEB_PARTIAL_AT_X": {
+      "label": "Celeb partial take at",
+      "section": "Exits & trailing",
+      "unit": "x",
+      "src": "env"
+    },
+    "CELEB_PARTIAL_PCT": {
+      "label": "Celeb partial take size",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "CELEB_TRAIL_PCT": {
+      "label": "Celeb trailing stop",
+      "section": "Exits & trailing",
+      "unit": "%",
+      "src": "env"
+    },
+    "SCALE_IN": {
+      "label": "Scale-in buys",
+      "section": "Sizing",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "SCALE_IN_FIRST_SOL": {
+      "label": "Scale-in first buy",
+      "section": "Sizing",
+      "unit": "SOL",
+      "src": "env"
+    },
+    "SCALE_IN_ADD_AFTER_S": {
+      "label": "Scale-in add after",
+      "section": "Sizing",
+      "unit": "s",
+      "src": "env"
+    },
+    "SCALE_IN_LIQ_KEEP_PCT": {
+      "label": "Scale-in: liquidity must keep",
+      "section": "Sizing",
+      "unit": "%",
+      "src": "env"
+    },
+    "SCALE_IN_MAX_DRAWDOWN_PCT": {
+      "label": "Scale-in: max drop below entry",
+      "section": "Sizing",
+      "unit": "%",
+      "src": "env"
+    },
+    "TRAIL_GIVEBACK_PTS": {
+      "label": "Trailing stop giveback",
+      "section": "Exits & trailing",
+      "unit": "points",
+      "src": "env"
+    },
+    "MONITOR_WATCHDOG": {
+      "label": "Position monitor watchdog",
+      "section": "Scanners & monitors",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "WATCHDOG_STALE_S": {
+      "label": "Watchdog: monitor stale after",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "WATCHDOG_TICK_S": {
+      "label": "Watchdog check interval",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "WATCHDOG_REALERT_S": {
+      "label": "Watchdog re-alert every",
+      "section": "Scanners & monitors",
+      "unit": "s",
+      "src": "env"
+    },
+    "CELEB_WATCH": {
+      "label": "Celeb-post X watcher",
+      "section": "X",
+      "unit": "on/off",
+      "src": "env"
+    },
+    "CELEB_WATCH_HANDLES": {
+      "label": "Celeb watcher: accounts",
+      "section": "X",
+      "unit": "list",
+      "src": "env"
+    },
+    "CELEB_WATCH_QUERY": {
+      "label": "Celeb watcher: search query",
+      "section": "X",
+      "unit": "text",
+      "src": "env"
+    },
+    "CELEB_WATCH_INTERVAL_S": {
+      "label": "Celeb watcher poll interval",
+      "section": "X",
+      "unit": "s",
+      "src": "env"
+    },
+    "SOLANA_RPC_URL": {
+      "label": "Solana RPC for celeb watcher context",
+      "section": "RPC",
+      "unit": "secret",
+      "src": "env"
     }
   }
 }
