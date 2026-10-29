@@ -4,9 +4,20 @@
 
 > **Ask these first, in this order (wizard menu 2 does the same):**
 > 1. **Agent autonomy (`AGENT_MODE`).** `suggest` (default, preselected): the agent proposes every buy and sell and the bot waits for the owner's `/approve <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto`: **warning** - the agent buys and sells on its own inside the caps with no per-trade sign-off. The wizard makes the owner type `AUTO`; `setup.json` needs `"AGENT_CONFIRM_AUTO": "AUTO"`. Never pick auto for the owner.
-> 2. **Paper or live (`SNIPER_PAPER_MODE`).** Paper is the default for new setups (`bots/.env.example` ships `SNIPER_PAPER_MODE=1`): every trade is simulated at real quotes, nothing is signed or sent, and no wallet private key is needed. **Live keys are opt-in**: only after the owner chooses live does the wizard ask for the burner wallet's private key, with a warning, and leaving paper needs `LIVE` typed (section 4.2). Token launches stay off-chain (`LAUNCH_RAIL_LIVE=0`) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before going live.
+> 2. **Active hours (`ACTIVE_HOURS` + `ACTIVE_TZ`).** Default `00:00-23:59` (always on), `America/New_York`. The loop runs 24/7 either way; the window only gates new buys and new cards, exits always run. See "Always on" below.
+> 3. **Paper or live (`SNIPER_PAPER_MODE`).** Paper is the default for new setups (`bots/.env.example` ships `SNIPER_PAPER_MODE=1`): every trade is simulated at real quotes, nothing is signed or sent, and no wallet private key is needed. **Live keys are opt-in**: only after the owner chooses live does the wizard ask for the burner wallet's private key, with a warning, and leaving paper needs `LIVE` typed (section 4.2). Token launches stay off-chain (`LAUNCH_RAIL_LIVE=0`) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before going live.
 
 > **The owner runs setup once by hand.** Start `python bots/sniper.py` and use the setup wizard (menu 2) and **Sign in to X** (menu 3) at least once: X sign-in needs a human at the browser window (2FA, captcha). After that, you (the agent) can fill or change the rest through `setup.json` or the Settings screen. If `bots/.env` is missing, the wizard, `setup.json`, the Settings screen and token refresh all create it from `bots/.env.example`.
+
+## Always on: loop, cadence and active hours
+
+Meme Sniper is a **loop meant to run continuously**: the bot runs 24/7 on its cadence and your agent runs the lanes in `automations/` on theirs. It is not a one-shot script.
+
+- **Keep it running:** use an always-on hosted agent (best), or auto-start on boot on your own PC: Windows Task Scheduler "At log on" running `python bots/sniper.py --start`, macOS a `launchd` agent, Linux a `systemd --user` service or `@reboot` cron. Have the agent's lane jobs saved as recurring automations so they survive restarts.
+- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps sells, stop-losses, armed SL/TP, the stuck-bag watchdog and monitoring running, and resumes on its own when the window opens. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
+- **Cadence (tunable):** lane cadences `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadences keep their existing settings (`AGENT_INBOX_CADENCE_S`, `SNIPER_LAUNCH_POLL_S`, `WALLET_POLL_INTERVAL_S`, `SNIPER_WATCH_INTERVAL_S`).
+- **Check it:** `python bots/active_hours.py` prints whether new entries are allowed right now and each lane's cadence (no secrets).
+- The setup wizard asks active hours right after the agent-autonomy question (`AGENT_MODE`).
 
 ## 0. Prerequisites
 
@@ -91,7 +102,7 @@ You can also run one option directly: `--start`, `--dashboard`, `--wizard`, `--l
 
 **First run.** If `bots/.env` is missing or incomplete (wallet key, RPC or model key), the wizard opens on its own.
 
-**Agent first-run questions.** Your SI agent also asks you, before the first trade, starting with agent autonomy (`AGENT_MODE`, default `suggest`) and then paper or live (default paper), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = always). See README "Safety caps and your settings".
+**Agent first-run questions.** Your SI agent also asks you, before the first trade, starting with agent autonomy (`AGENT_MODE`, default `suggest`), then active hours (`ACTIVE_HOURS`, default `00:00-23:59` = always, + `ACTIVE_TZ`), then paper or live (default paper), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = always). See README "Safety caps and your settings".
 
 **Skipping the wizard (`setup.json`).** You can configure without the interactive wizard. Put `setup.json` in the repo root (or in `bots/`):
 

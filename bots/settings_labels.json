@@ -1817,6 +1817,54 @@
       "section": "RPC",
       "unit": "secret",
       "src": "env"
+    },
+    "ACTIVE_HOURS": {
+      "label": "Active hours for new buys (loop runs 24/7; 00:00-23:59 = always)",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "ACTIVE_TZ": {
+      "label": "Active hours timezone",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "ACTIVE_DAYS": {
+      "label": "Active days (blank = every day)",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "LANE_CADENCE_SNIPER_LANE_MIN": {
+      "label": "Sniper lane cadence",
+      "section": "Pauses",
+      "unit": "minutes",
+      "src": "env"
+    },
+    "LANE_CADENCE_MISC_LANE_MIN": {
+      "label": "Misc lane cadence",
+      "section": "Pauses",
+      "unit": "minutes",
+      "src": "env"
+    },
+    "LANE_CADENCE_WARDEN_LANE_MIN": {
+      "label": "Warden lane cadence",
+      "section": "Pauses",
+      "unit": "minutes",
+      "src": "env"
+    },
+    "LANE_MORNING_BRIEF_AT": {
+      "label": "Morning brief time",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
+    },
+    "LANE_NIGHTLY_EVAL_AT": {
+      "label": "Nightly self-eval time",
+      "section": "Pauses",
+      "unit": "text",
+      "src": "env"
     }
   }
 }

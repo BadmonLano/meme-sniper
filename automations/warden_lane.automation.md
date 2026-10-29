@@ -1,5 +1,5 @@
 # Warden inbox lane
-- Trigger: set by the user or agent (pick your own cadence)
+- Trigger: set by the user or agent (pick your own cadence); recurring and always on, see `bots/.env` LANE_CADENCE_* and ACTIVE_HOURS (automations/README.md "Always on")
 - Lane source: security_warden -> `inbox/security_warden - *`
 - Reads: `inbox/security_warden - *` packets, `skills/sub-skills/warden/SKILL.md`, recent sniper and launch_rail actions, patch_landed_ack packets, backups
 - Writes: `inbox_results/done|failed` (+ `.failure.md`), `owner_inbox/` patch packets (medic), `bot_logs/inbox_cron_audit.log`, owner-ping on real findings

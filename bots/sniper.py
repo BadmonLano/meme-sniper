@@ -393,6 +393,32 @@ def agent_mode_answer(cur: dict, answers: dict | None) -> str:
     return v
 
 
+ACTIVE_HOURS_HELP = ("The bot is a loop that runs continuously on its cadence. Active hours only decide when it may "
+                     "take NEW buys and surface new cards; sells, stops, SL/TP and monitoring always run, nothing is "
+                     "cut off mid-order, and it resumes on its own when the window opens.\n"
+                     "  00:00-23:59 (default) = always on. Examples: 09:00-23:00, 22:00-02:00, 09:00-12:00,18:00-23:00.")
+
+
+def active_hours_answer(cur: dict, answers: dict | None) -> dict:
+    """Second setup question (right after autonomy): ACTIVE_HOURS + ACTIVE_TZ. Bad input keeps the old value."""
+    import active_hours as _ah
+    now_h = str(cur.get("ACTIVE_HOURS") or "00:00-23:59").strip()
+    now_tz = str(cur.get("ACTIVE_TZ") or "America/New_York").strip()
+    if answers is not None:
+        h = str(answers.get("ACTIVE_HOURS", now_h) or now_h).strip()
+        tz = str(answers.get("ACTIVE_TZ", now_tz) or now_tz).strip()
+    else:
+        console.print(Panel(ACTIVE_HOURS_HELP, border_style=PURPLE, title="Active hours"))
+        h = Prompt.ask("Active hours (HH:MM-HH:MM, comma for several)", default=now_h).strip()
+        tz = Prompt.ask("Timezone for active hours", default=now_tz).strip()
+    ok, why = _ah.in_active_window(env={"ACTIVE_HOURS": h, "ACTIVE_TZ": tz})
+    if "unreadable" in why:
+        if answers is None:
+            console.print(f"[yellow]{why}; keeping {now_h} {now_tz}[/]")
+        h, tz = now_h, now_tz
+    return {"ACTIVE_HOURS": h, "ACTIVE_TZ": tz}
+
+
 def paper_mode_answer(cur: dict, answers: dict | None) -> str:
     """Explicit opt-in (defaults to No). Leaving paper for live needs the word LIVE typed."""
     was = _paper(cur)
@@ -536,6 +562,8 @@ def menu_panel() -> Panel:
 # ── wizard status ──
 EXTRA_FIELDS = [   # (key, prompt, secret, default): asked as yes/no or extra keys, shown in the status table
     ("AGENT_MODE", "Agent autonomy (suggest = waits for your OK, auto = trades on its own)", False, "suggest"),
+    ("ACTIVE_HOURS", "Active hours for new buys (loop runs 24/7; 00:00-23:59 = always)", False, "00:00-23:59"),
+    ("ACTIVE_TZ", "Timezone for active hours", False, "America/New_York"),
     ("LLM_MAIN", "Main brain", False, "grok"),
     ("LLM_FALLBACK", "Fallback brain (none = no fallback)", False, "ollama"),
     ("X_BEARER_TOKEN", "X API bearer token (optional; or use menu 3, Sign in to X)", True, ""),
@@ -546,7 +574,7 @@ EXTRA_FIELDS = [   # (key, prompt, secret, default): asked as yes/no or extra ke
 YESNO_KEYS = ("LAUNCH_RAIL_LIVE", "LAUNCH_RAIL_ENABLED", "SNIPER_LEARN_REST", "SNIPER_LEARNING_MODE", "SNIPER_PAPER_MODE",
               "OLLAMA_ENABLED", "OLLAMA_CLOUD_ENABLED")
 AREAS = [
-    ("Autonomy", ("AGENT_MODE", "SNIPER_PAPER_MODE")),
+    ("Autonomy", ("AGENT_MODE", "ACTIVE_HOURS", "ACTIVE_TZ", "SNIPER_PAPER_MODE")),
     ("Wallet", ("HOT_WALLET_PRIVATE_KEY", "HOT_WALLET_ADDRESS", "LEDGER_ADDRESS")),
     ("RPC", ("RPC_URL", "HELIUS_API_KEY", "HELIUS_DAILY_CREDIT_CAP")),
     ("Brain / LLM", None),       # dynamic: main + fallback, then only the selected providers' rows
@@ -842,6 +870,8 @@ def _ask_field(key: str, cur: dict) -> str | None:
         return "1" if Confirm.ask(label, default=on) else "0"
     if key == "AGENT_MODE":
         return agent_mode_answer(cur, None)
+    if key in ("ACTIVE_HOURS", "ACTIVE_TZ"):
+        return active_hours_answer(cur, None)[key]
     if key == "SNIPER_PAPER_MODE":
         return paper_mode_answer(cur, None)
     if key == "ALERT_CHANNELS":
@@ -890,8 +920,11 @@ def _wizard_interactive(out_path: Path) -> Path | None:
     mode = choose(console, "choose", ["1", "2", "3"], "1")
     first: dict = {}
     if mode != "2":   # v1.0.15: autonomy first, then paper/live, then (live only) the wallet key
-        for fk in ("AGENT_MODE", "SNIPER_PAPER_MODE"):
+        for fk in ("AGENT_MODE", "ACTIVE_HOURS", "SNIPER_PAPER_MODE"):   # v1.0.16: active hours right after autonomy
             if mode == "3" or not str(cur.get(fk) or "").strip():
+                if fk == "ACTIVE_HOURS":
+                    first.update(active_hours_answer({**cur, **first}, None))
+                    continue
                 fv = _ask_field(fk, {**cur, **first})
                 if fv is not None:
                     first[fk] = fv
@@ -911,7 +944,7 @@ def _wizard_interactive(out_path: Path) -> Path | None:
     else:
         todo = list(keys)
     vals: dict = dict(first)
-    done: set = set(first) | ({"AGENT_MODE", "SNIPER_PAPER_MODE"} if mode != "2" else set())
+    done: set = set(first) | ({"AGENT_MODE", "ACTIVE_HOURS", "ACTIVE_TZ", "SNIPER_PAPER_MODE"} if mode != "2" else set())
     if _paper({**cur, **vals}):
         done.add("HOT_WALLET_PRIVATE_KEY")   # live keys are opt-in: not asked in paper mode
     while todo:
@@ -985,6 +1018,7 @@ def wizard(out_path: Path = ENV_FILE, answers: dict | None = None) -> Path | Non
                         "Leave a field blank to keep its current value.", border_style=PURPLE))
     cur = read_env(out_path)
     vals = {"AGENT_MODE": agent_mode_answer(cur, answers)}   # first question
+    vals.update(active_hours_answer(cur, answers))           # second: active hours (v1.0.16)
     vals["SNIPER_PAPER_MODE"] = paper_mode_answer(cur, answers)
     for key, label, secret, default in WIZARD_FIELDS:
         if key == "LAUNCH_RAIL_LIVE":   # explicit yes/no, defaults to off-chain, loud warning first

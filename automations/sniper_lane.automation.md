@@ -1,5 +1,5 @@
 # Sniper inbox lane
-- Trigger: set by the user or agent (pick your own cadence)
+- Trigger: set by the user or agent (pick your own cadence); recurring and always on, see `bots/.env` LANE_CADENCE_* and ACTIVE_HOURS (automations/README.md "Always on")
 - Lane source: meme_sniper + trench_news -> `inbox/meme_sniper - *`, `inbox/trench_news - *`
 - Reads: those packets, `skills/meme-hunter/SKILL.md`, `bot_logs/positions.json`
 - Writes: `inbox_results/done|failed` (+ `.failure.md`), set_protection SL/TP, `bot_logs/inbox_cron_audit.log` (via `bots/tools/lane_run.py`), owner-ping when it matters

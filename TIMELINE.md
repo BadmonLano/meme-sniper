@@ -2,6 +2,9 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.16 (2026-10-29): always-on loop, active hours, tunable lane cadences
+- Always-on loop docs, `ACTIVE_HOURS`/`ACTIVE_TZ`/`ACTIVE_DAYS` (default always on), tunable `LANE_CADENCE_*`, asked right after `AGENT_MODE`. Details: CHANGELOG.md.
+
 ## v1.0.15 (2026-10-29): owner-chosen agent autonomy (suggest by default), paper by default, league mode
 For the cursor.directory review: the published skills no longer override human-in-the-loop.
 - **`AGENT_MODE` (new, asked FIRST in setup):** `suggest` (default) = the agent proposes buys and sells and the bot holds them (`awaiting_owner_approval` ack + owner card in `owner_inbox/`) until the owner answers `/approve <id>` / `/reject <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto` = the old behaviour, behind a warning (wizard: type `AUTO`; setup.json: `AGENT_CONFIRM_AUTO=AUTO`). Gated actions: buy, sell, sell_holding, harvest_holding, panic_sell. Bot-armed SL/TP exits, the stuck-bag watchdog and SL/TP changes are not held. `bots/agent_mode.py`, `bots/approve.py`.

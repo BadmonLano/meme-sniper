@@ -85,6 +85,15 @@ def _num(x):
 
 # ---------- 5. trading window ----------
 def in_trading_window(now: Optional[datetime] = None) -> tuple:
+    # v1.0.16: ACTIVE_HOURS / ACTIVE_TZ / ACTIVE_DAYS (bots/active_hours.py) is the loop's window
+    # for new buys and new cards. TRADING_HOURS below still applies on top (both must allow).
+    try:
+        import active_hours as _ah
+        _ok, _why = _ah.in_active_window(now)
+        if not _ok:
+            return False, _why
+    except Exception:
+        pass
     spec = _e("TRADING_HOURS", "")
     if not spec:
         return True, "always on"

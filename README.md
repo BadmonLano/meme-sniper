@@ -10,12 +10,23 @@ No hype, no ticker. Just the code.
 
 ---
 
+## Always on: loop, cadence and active hours
+
+Meme Sniper is a **loop meant to run continuously**: the bot runs 24/7 on its cadence and your agent runs the lanes in `automations/` on theirs. It is not a one-shot script.
+
+- **Keep it running:** use an always-on hosted agent (best), or auto-start on boot on your own PC: Windows Task Scheduler "At log on" running `python bots/sniper.py --start`, macOS a `launchd` agent, Linux a `systemd --user` service or `@reboot` cron. Have the agent's lane jobs saved as recurring automations so they survive restarts.
+- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps sells, stop-losses, armed SL/TP, the stuck-bag watchdog and monitoring running, and resumes on its own when the window opens. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
+- **Cadence (tunable):** lane cadences `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadences keep their existing settings (`AGENT_INBOX_CADENCE_S`, `SNIPER_LAUNCH_POLL_S`, `WALLET_POLL_INTERVAL_S`, `SNIPER_WATCH_INTERVAL_S`).
+- **Check it:** `python bots/active_hours.py` prints whether new entries are allowed right now and each lane's cadence (no secrets).
+- The setup wizard asks active hours right after the agent-autonomy question (`AGENT_MODE`).
+
 ## Works with
 
 Sniper can be run by Grok Bot, Muse, or an agent from any of the larger SI companies: any SI agent that can read and write files and run Python works. No official partnership or endorsement is implied.
 
 ## Contents
 
+- [Always on: loop, cadence and active hours](#always-on-loop-cadence-and-active-hours)
 - [Works with](#works-with)
 - [Glossary](#glossary)
 - [Paper quick start (dry run)](#paper-quick-start-dry-run)

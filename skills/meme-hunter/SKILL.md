@@ -38,6 +38,10 @@ purpose: >
 - `protective_order_fired` / `protective_order_exhausted` / `protection_missing`: same as on mainnet.
 - A buy that fails with `league_executor_not_configured`: the AudaceFi executor isn't set up yet. Tell the owner and don't retry.
 
+## Always on: cadence and active hours
+
+Meme Sniper is a loop meant to run continuously: keep your lane automations saved and recurring (always-on hosted agent, or auto-start on boot), at the cadences in `bots/.env` (`LANE_CADENCE_*`, `LANE_MORNING_BRIEF_AT`, `LANE_NIGHTLY_EVAL_AT`; `python bots/active_hours.py` prints them). Outside `ACTIVE_HOURS` / `ACTIVE_DAYS` (`ACTIVE_TZ`) keep running every lane and keep protecting open positions (set_protection, sells), but send no new buys; the bot declines them (`outside_trading_hours`, reason names `ACTIVE_HOURS`) and resumes on its own. Never change `ACTIVE_HOURS` yourself.
+
 ## Owner rules come first
 
 Before every trade decision (buy, size, hold, exit, protection change), read the owner's rules: `rules/rules.md`, also attached to each decision packet as `owner_rules`. Owner rules override every default in this skill: a max size, no-trade hours, banned tokens or categories, loss limits or exit rules from the owner win over the numbers here. The bot's hard safety gates still apply on top. If `owner_rules.present` is false, the skill defaults apply. If a rule and a packet conflict, follow the rule and say so in your reasoning.
@@ -67,7 +71,7 @@ Do this once, with the owner, before the first live trade. Nothing gets decided 
 
 ## First run: ask your owner
 
-Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default). Ask first: agent mode (`AGENT_MODE`: `suggest` = you propose and wait for the owner's OK, the default; `auto` = you trade on your own inside the caps, warn the owner before they pick it), then paper or live (default paper; live needs the wallet key and the owner typing LIVE). Then: launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
+Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default). Ask first: agent mode (`AGENT_MODE`: `suggest` = you propose and wait for the owner's OK, the default; `auto` = you trade on your own inside the caps, warn the owner before they pick it), then active hours (`ACTIVE_HOURS`, default `00:00-23:59` = always on, + `ACTIVE_TZ`; the loop runs 24/7 either way, the window only gates new buys), then paper or live (default paper; live needs the wallet key and the owner typing LIVE). Then: launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
 
 ## Self-update policy
 

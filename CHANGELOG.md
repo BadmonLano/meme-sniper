@@ -2,6 +2,13 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.16 (2026-10-29): always-on loop, active hours, tunable lane cadences
+- **The bot is a loop meant to run continuously.** New "Always on: loop, cadence and active hours" section at the top of README.md and SETUP.md, plus notes in `skills/meme-hunter/SKILL.md`, `automations/README.md` and each lane file: keep it on an always-on hosted agent or auto-start on boot, and keep the lanes as saved recurring automations.
+- **`ACTIVE_HOURS` (default `00:00-23:59` = always on), `ACTIVE_TZ` (`America/New_York`), `ACTIVE_DAYS` (blank = every day).** Outside the window the loop idles on new buys and new inbox cards (pre-buy gate, so never mid-order), keeps sells, SL/TP, the watchdog and monitoring running, and resumes on its own. Existing `TRADING_HOURS` / `TRADING_TZ` still apply on top. `bots/active_hours.py` (+ `python bots/active_hours.py` status, no secrets); wired into `sniper_guard.in_trading_window`.
+- **Lane cadences (tunable):** `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadence vars unchanged, not duplicated.
+- **Setup wizard:** active hours + timezone asked right after `AGENT_MODE`. Labels added to `bots/settings_labels.json`.
+- Defaults keep the old always-on behaviour. Test: `bots/tests/test_active_hours.py`.
+
 ## v1.0.15 (2026-10-29): owner-chosen agent autonomy (suggest by default), paper by default, league mode
 For the cursor.directory review: the published skills no longer override human-in-the-loop.
 - **`AGENT_MODE` (new, asked FIRST in setup):** `suggest` (default) = the agent proposes buys and sells and the bot holds them (`awaiting_owner_approval` ack + owner card in `owner_inbox/`) until the owner answers `/approve <id>` / `/reject <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto` = the old behaviour, behind a warning (wizard: type `AUTO`; setup.json: `AGENT_CONFIRM_AUTO=AUTO`). Gated actions: buy, sell, sell_holding, harvest_holding, panic_sell. Bot-armed SL/TP exits, the stuck-bag watchdog and SL/TP changes are not held. `bots/agent_mode.py`, `bots/approve.py`.
