@@ -67,7 +67,7 @@ Around those: an SI "brain" (Grok, OpenAI, Claude, any OpenAI-compatible endpoin
 
 ## Paper quick start (dry run)
 
-Sniper has a paper mode, but it still needs a wallet key and an RPC to boot (they are required keys), so there is no fully keyless start. Use a **brand-new burner wallet with no funds**: in paper mode nothing is signed or sent, and fills come from a simulated balance (`SNIPER_PAPER_START_SOL`, default 1.0).
+Paper mode is the default for new setups and needs no wallet private key: set an RPC, a brain and a `HOT_WALLET_ADDRESS` (any address, e.g. a fresh burner's). Nothing is signed or sent, and fills come from a simulated balance (`SNIPER_PAPER_START_SOL`, default 1.0). The private key is asked for only when the owner opts into live.
 
 ```
 git clone https://github.com/BadmonLano/meme-sniper.git
@@ -77,7 +77,7 @@ pip install -r requirements.txt
 cp bots/.env.example bots/.env                       # Windows: copy
 ```
 
-In `bots/.env` set `SNIPER_PAPER_MODE=1`, the burner's `HOT_WALLET_PRIVATE_KEY` / `HOT_WALLET_ADDRESS`, an `RPC_URL` (Solana's free public `https://api.mainnet-beta.solana.com` works for a test) and a brain (`GROK_API_KEY` or local Ollama). Then `python bots/sniper.py --smoke` and `python bots/sniper.py`. Paper state lives in `bot_logs/paper/`. Going live later needs an explicit `LIVE` confirmation in the wizard.
+In `bots/.env` keep `AGENT_MODE=suggest` and `SNIPER_PAPER_MODE=1` (both shipped defaults), set the burner's `HOT_WALLET_ADDRESS`, an `RPC_URL` (Solana's free public `https://api.mainnet-beta.solana.com` works for a test) and a brain (`GROK_API_KEY` or local Ollama). Then `python bots/sniper.py --smoke` and `python bots/sniper.py`. Paper state lives in `bot_logs/paper/`. Going live later needs an explicit `LIVE` confirmation in the wizard.
 
 ## Read this first: safety defaults
 
@@ -90,6 +90,7 @@ In `bots/.env` set `SNIPER_PAPER_MODE=1`, the burner's `HOT_WALLET_PRIVATE_KEY` 
 | `bots/.env` | ignored by git | Your keys live here. **Never commit it, zip it or paste it anywhere.** Only `.env.example` (blank) is in the repo. |
 
 Honest notes:
+- **Agent autonomy is the first setup question.** `AGENT_MODE=suggest` (default): the agent proposes trades and waits for your `/approve`. `AGENT_MODE=auto` lets it buy and sell on its own inside the caps; pick it only if you accept that.
 - Use a **burner hot wallet** holding only what you can afford to lose. Never your main wallet.
 - **What wallet access means:** the private key in `bots/.env` lets the bot sign **any** transaction from that wallet, not just trades: it could move or spend everything in it. So use a burner, keep the balance small, and sweep profits out (`LEDGER_ADDRESS`).
 - **Agent buys need a working RPC.** Without a reachable `RPC_URL` (or `HELIUS_API_KEY`) buy signals are refused, not queued.
@@ -342,7 +343,7 @@ Full guide: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Versions and releases
 
 - Feature details for each version (vault exception, celebrity-post rule, scale-in/trail/watchdog, celeb_post cards and later) are in [`CHANGELOG.md`](CHANGELOG.md).
-- Versions look like `v1.0.14` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
+- Versions look like `v1.0.15` (the trading engine inside keeps its own number, v14.3). Each one is a **Release** with notes on what changed (history in [`TIMELINE.md`](TIMELINE.md)).
 - **Forks and downloads don't auto-update.** You update when you want:
   - ZIP: download the new release, copy your `bots/.env`, `rules/rules.md` and `learnings/` across.
   - Git clone: `git pull`.

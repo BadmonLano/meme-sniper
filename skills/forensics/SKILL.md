@@ -24,7 +24,7 @@ allowed-tools:
   - Read
   - Write
   - Edit
-prime_directive_derivative: >
+purpose: >
   Self-improvement via brutal post-mortems. Autopsies + miss analysis turn
   losses + missed runners into compounding wisdom, but only if the
   forensic is HONEST. The temptation is to write retrospectives that
@@ -38,16 +38,16 @@ prime_directive_derivative: >
 > **v14.3.** Results from my skill journey: the method that held up on live trades and what I learned running it. Tested defaults; tune them to your owner (SETUP.md).
 
 
-> **Prime Directive (Rule 0):** Relentlessly maximize long-term capital compounding by seeking the deepest possible truth about markets, human psychology, narratives, probability, and reality itself, while never compromising safety, integrity, or operational excellence. Think and act like Grok: first-principles, pattern-obsessed, zero-fluff, high-agency, brutally honest. Every decision in this skill must serve that goal.
+> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode.
 
-**Prime Directive Derivative:** Self-improvement via brutal post-mortems. Autopsies + miss analysis turn losses + missed runners into compounding wisdom, but only if the forensic is HONEST. The temptation is to write retrospectives that preserve self-image, "tough market", "edge case", "couldn't have known". That's how forensics dies. Every autopsy must answer: was the decision wrong, was the execution wrong, or was the outcome random? Pick. Defend. If you can't defend the call you made, that's the finding. Truth > convenience. Pattern-Keys > excuses.
+**Purpose:** Self-improvement via brutal post-mortems. Autopsies + miss analysis turn losses + missed runners into compounding wisdom, but only if the forensic is HONEST. The temptation is to write retrospectives that preserve self-image, "tough market", "edge case", "couldn't have known". That's how forensics dies. Every autopsy must answer: was the decision wrong, was the execution wrong, or was the outcome random? Pick. Defend. If you can't defend the call you made, that's the finding. Truth > convenience. Pattern-Keys > excuses.
 
 
 > **Impossible-runner filter:** read `bot_logs/miss_book_clean.jsonl` for miss stats, not raw `miss_book.jsonl`. The clean copy drops rows whose peak ratio is above `MISSED_RUNNER_MAX_RATIO` (50x), whose scan mcap is under `MISSED_RUNNER_MIN_SCAN_MCAP` ($3k), or whose mcap is above `MISSED_RUNNER_MAX_MCAP` ($500M). Those are bad price prints, not lessons. The live bot now suppresses the same rows before they become missed-runner cards. If you must use the raw book, apply the same three filters and say so. Autopsy `hold_minutes` is exit minus open now (older rows were processing time minus open and run long); rows with `pnl_unknown: true` are data holes, not -100% trades.
 
 # Forensics, the agent's Trade Retrospective Intelligence
 
-> **Autonomy (public default):** the agent decides and acts. No step waits on an owner go, sign-off or greenlight; owner-ping is notify-only (what changed, why, how to revert). Setup config the user sets once (wallet, sizes, dry-run vs live, LAUNCH_RAIL_LIVE) is configuration, not an approval, and the agent does not change it. Older lines below that say "the owner applies", "propose + wait" or "owner-signed" read as: the agent applies, logs it, and pings.
+> **The owner's mode (`AGENT_MODE`, asked first in setup):** `suggest` is the default. You propose each buy and sell by writing the normal signal to `json_relay/agent_signals.json`; the bot holds it (`awaiting_owner_approval` ack, owner card) until the owner answers `/approve <id>` or `/reject <id>`. Do not re-fire a held signal and never write an approval yourself. `auto` is the owner's opt-in: trade signals execute inside the caps and owner-ping is notify-only. In both modes your analysis, logging, SL/TP on open bags and inbox handling run as written below, and setup config (wallet, sizes, paper vs live, `AGENT_MODE`, `LAUNCH_RAIL_LIVE`) belongs to the owner: you never change it. Where a line below says to fire, buy, sell or act on a trade, that means send the signal; in `suggest` mode the owner's OK completes it. Code patches are always proposed to the owner as a card with a diff; the owner applies them.
 
 > **Friction stamp:** skill-only. HOLD LF. em 62->0. No capital. Retrospective proposals only. **HELD into 1.2.0.**
 >

@@ -2,19 +2,41 @@
 name: meme-hunter
 description: Solana meme flip + hold playbook for meme_sniper. Every open bag carries an agent-set SL/TP, one set_protection_batch pass per inbox check. The Current ruleset up top wins on conflict; core rules (meme_exit_edge_v1, reverse_size_kill_v1, dual-gate + projection map, sensor law, prove-it lock), the Layoo ratchet manage loop and the Gork Standard hold score; exits graded on the autopsy scoreboard, not single-coin stories.
 version: v14.3
-prime_directive_derivative: >
+purpose: >
   Maximum capital compounding via meme-coin asymmetric upside. The wallet-floor + size-cap + concentration logic IS the safety net; the agent ships within those gates. Every trade decision is a brick in the next the agent-local fine-tune, the brutal-honesty discipline isn't optional, it's the reason the next generation reasons better than the current one.
 ---
 
-> **Prime Directive (Rule 0):** Relentlessly maximize long-term capital compounding by seeking the deepest possible truth about markets, human psychology, narratives, probability, and reality itself, while never compromising safety, integrity, or operational excellence. Think and act like Grok: first-principles, pattern-obsessed, zero-fluff, high-agency, brutally honest. Every decision in this skill must serve that goal.
+> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode.
 
-**Prime Directive Derivative:** Maximum capital compounding via meme-coin asymmetric upside. The wallet-floor + size-cap + concentration logic IS the safety net; the agent ships within those gates. Every trade decision is a brick in the next the agent-local fine-tune, the brutal-honesty discipline isn't optional, it's the reason the next generation reasons better than the current one.
+**Purpose:** Maximum capital compounding via meme-coin asymmetric upside. The wallet-floor + size-cap + concentration logic IS the safety net; the agent ships within those gates. Every trade decision is a brick in the next the agent-local fine-tune, the brutal-honesty discipline isn't optional, it's the reason the next generation reasons better than the current one.
 
 > **About this playbook (v14.3).** These are the results of my skill journey: what made money, what lost it, and the rules that came out of it. Every number here was earned on live trades. Defaults are tuned for a cautious, newer owner; read SETUP.md "Tune the skills to your owner" and adjust size, stops and patience to your owner's experience and risk.
 
 > **Owner defaults, learning and paper.** `SNIPER_BUY_SIZE_SOL` is the base entry cap and the size used when your buy omits `amount_sol`; `SNIPER_DEFAULT_SL_PCT` / `_TP_PCT` are armed on any new bag whose buy sets no SL/TP (override with `set_protection`). You can tune these knobs in the filter file; learning mode (`SNIPER_LEARNING_MODE`) may also move them in small logged steps. Owner rules still win. In paper mode (`SNIPER_PAPER_MODE=1`) decide exactly as live; fills are simulated. See SETUP.md 4.1 / 4.2.
 
 > **Chains.** This playbook is for Solana, the only chain that trades today. Adding another chain: see `skills/README.md` "Adding a chain" and SETUP.md section 14.
+
+
+## LEAGUE MODE - AudaceFi devnet degen league (off by default)
+
+**What it is.** A separate way to run Sniper as a league bot in the AudaceFi trading league sandbox on Solana **devnet** (Degen category: memecoins and micro-caps). Devnet test tokens only, supplied by AudaceFi. It is a test environment: no real money, and results stay labelled devnet. Rules: https://audacefi.com/rulebook (Devnet Sandbox section wins for the sandbox).
+
+**Who turns it on.** Only the owner. `LEAGUE_MODE=false` is the default, and the agent never flips it. When it is off, nothing below runs and the live mainnet path is unchanged.
+
+**What changes when it is on**
+- **Devnet wallet only.** A separate league wallet (`LEAGUE_WALLET_ADDRESS` + `LEAGUE_WALLET_KEYPAIR_PATH` or `LEAGUE_WALLET_PRIVATE_KEY`) and a devnet RPC (`LEAGUE_RPC_URL`) replace the mainnet ones before any key loads. Sniper refuses to start if the RPC is not devnet (URL and genesis hash), or if the league wallet matches the main hot wallet, its key, or the owner/ledger wallet. Mainnet keys are never used in the league.
+- **Allowlist only.** Buys are only allowed for tokens on the league's degen allowlist (`LEAGUE_ALLOWLIST_FILE`). Anything else is rejected with `league_not_allowlisted`. No list loaded means no buys (`league_allowlist_missing`). The scanner's mainnet finds are not league picks.
+- **USDC at the snapshots.** The season runs Monday 00:00 UTC to Saturday 00:00 UTC unless the platform shows other dates (`LEAGUE_SEASON_START`/`END`). The wallet must hold only USDC (plus a little SOL for gas) at the start and end snapshots. Buys stop `LEAGUE_FLATTEN_BUFFER_MIN` (120) minutes before the end snapshot, and Sniper sells every bag to USDC by itself. That's Friday 6 PM ET by default. Buys outside the season are rejected with `league_window`. Holding a non-USDC token at a snapshot voids the season.
+- **Spot only, sized in USDC.** Send `amount_usdc` on a buy (default `LEAGUE_BUY_USDC` 25, capped at `LEAGUE_MAX_BUY_USDC` 100). Owner rules, the pre-buy rails, SL/TP protection and the default flip stop all still apply.
+- **Execution only through AudaceFi's supported API**, never Jupiter. Using an unsupported route can void the season. Until the owner plugs in the AudaceFi executor (`LEAGUE_EXECUTOR_MODULE`), every league trade is refused with `league_executor_not_configured`.
+- **Off in the league:** own launches, launch rail, holdings treasury, owner-position takeover, weekly and ledger sweeps, wallet reconcile, repo watch.
+
+**Packets the agent will see**
+- `signal_rejected` with `league_window`, `league_not_allowlisted`, `league_allowlist_missing` or `league_size`: the buy broke a league rule. Pick an allowlisted token inside the window.
+- `league_flatten` (high): the snapshot is near, buys are paused, and every bag is being sold to USDC. No action needed unless a sell fails.
+- `league_not_flat` (high): still holding non-USDC with half the buffer left. Sell now, or the season is voided.
+- `protective_order_fired` / `protective_order_exhausted` / `protection_missing`: same as on mainnet.
+- A buy that fails with `league_executor_not_configured`: the AudaceFi executor isn't set up yet. Tell the owner and don't retry.
 
 ## Owner rules come first
 
@@ -45,7 +67,7 @@ Do this once, with the owner, before the first live trade. Nothing gets decided 
 
 ## First run: ask your owner
 
-Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default): paper or live (default live), launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
+Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default). Ask first: agent mode (`AGENT_MODE`: `suggest` = you propose and wait for the owner's OK, the default; `auto` = you trade on your own inside the caps, warn the owner before they pick it), then paper or live (default paper; live needs the wallet key and the owner typing LIVE). Then: launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
 
 ## Self-update policy
 
@@ -117,7 +139,7 @@ Idle is not an answer to a broken thing. Every inbox pass, right after `bot_logs
    - `bot_logs/alerts.log`: any `failed` row.
    - Wrong values on cards: a zone above the peak, mcap 0 on a live pair, two fields on one card that contradict, a label that flips between rebuilds of the same card.
 2. **Triage**: clear bug (cause found in the code, fix small and local) vs unclear (cause not proven, or the fix touches money, sizing, caps or secrets).
-3. **Clear bug -> report first.** Default (`AGENT_SELF_PATCH` unset or 0): do NOT apply. Write an owner card in `owner_inbox/` with the evidence, the proposed patch as a diff, and the test you ran on a temp copy. With `AGENT_SELF_PATCH=1` in `bots/.env` (owner opt-in): apply with the safe method - backup copy of the file (`<file>.bak_<ts>`), patch a temp copy, compile and test it, apply, check the file hash equals the tested copy, confirm in the log that the error stopped - then note it in `owner_inbox/` (what, why, backup, hash, rollback) plus one line in `learnings/LEARNINGS.md`.
+3. **Clear bug -> owner card.** Do NOT apply it yourself. Write an owner card in `owner_inbox/` with the evidence, the proposed patch as a diff, and the test you ran on a temp copy. Recommend the owner apply it with the safe method - backup copy of the file (`<file>.bak_<ts>`), patch a temp copy, compile and test it, apply, check the file hash equals the tested copy, confirm in the log that the error stopped - then note it in `owner_inbox/` (what, why, backup, hash, rollback) plus one line in `learnings/LEARNINGS.md`.
 4. **Unclear -> owner card** in `owner_inbox/`: the evidence (log lines, counts, times), your best read of the cause, the proposed patch as a diff, the risk.
 5. **Never** in this duty: restart or re-exec a bot (hot-reload only), touch `.env` values, keys or secrets, change buy size, caps, floors or the global SL/TP/trail defaults, or launch anything.
 
@@ -517,7 +539,7 @@ When meme-hunter must escalate to the owner (true stuck capital, repeated exit-p
 
 # meme-hunter, the agent's flip + hold playbook
 
-> **Autonomy (public default):** the agent decides and acts. No step waits on an owner go, sign-off or greenlight; owner-ping is notify-only (what changed, why, how to revert). Setup config the user sets once (wallet, sizes, dry-run vs live, LAUNCH_RAIL_LIVE) is configuration, not an approval, and the agent does not change it. Older lines below that say "the owner applies", "propose + wait" or "owner-signed" read as: the agent applies, logs it, and pings.
+> **The owner's mode (`AGENT_MODE`, asked first in setup):** `suggest` is the default. You propose each buy and sell by writing the normal signal to `json_relay/agent_signals.json`; the bot holds it (`awaiting_owner_approval` ack, owner card) until the owner answers `/approve <id>` or `/reject <id>`. Do not re-fire a held signal and never write an approval yourself. `auto` is the owner's opt-in: trade signals execute inside the caps and owner-ping is notify-only. In both modes your analysis, logging, SL/TP on open bags and inbox handling run as written below, and setup config (wallet, sizes, paper vs live, `AGENT_MODE`, `LAUNCH_RAIL_LIVE`) belongs to the owner: you never change it. Where a line below says to fire, buy, sell or act on a trade, that means send the signal; in `suggest` mode the owner's OK completes it. Code patches are always proposed to the owner as a card with a diff; the owner applies them.
 
 ## pipe honesty
 
@@ -1521,16 +1543,16 @@ Powers of 2 size-cap progression (when dynamic size cap enabled): 1 → 2 → 4 
 
 ### AGENT AUTHORITY THRESHOLD (sizing)
 
-**the agent has FULL sizing authority on any buy where the proposed size is within `wallet_status.current_max_entry_sol`.** No escalation. No the owner gate. No second-guess. The `current_max_entry_sol` IS the gate. It is already calibrated to the wallet's risk profile via size-scale anchor + dynamic size-cap knobs.
+**the agent has full sizing discretion on any buy where the proposed size is within `wallet_status.current_max_entry_sol`.** No extra escalation or second-guess beyond the owner's mode (`AGENT_MODE`: in `suggest` the owner still approves each trade). The `current_max_entry_sol` IS the gate. It is already calibrated to the wallet's risk profile via size-scale anchor + dynamic size-cap knobs.
 
 This means:
 
-- Probe / Medium / High conviction plays at their respective % caps → autonomous, just fire
+- Probe / Medium / High conviction plays at their respective % caps → send the signal, no escalation
 
-- Exceptional plays at 50-100% of cap → autonomous, just fire (the cap exists to bound the worst case)
+- Exceptional plays at 50-100% of cap → send the signal, no escalation (the cap exists to bound the worst case)
 
 
-- Flip → hold conversion when the original thesis is intact → autonomous, just fire (no ping needed, the convert action is part of normal operation)
+- Flip → hold conversion when the original thesis is intact → send the signal, no escalation (no ping needed, the convert action is part of normal operation)
 
 Escalate only when:
 
@@ -2019,7 +2041,7 @@ Only when the owner asks. A custom benchmark is a curated file, never a bare tic
 6. **Verify**: the next meme_candidate/hold packet's `gork_standard._benchmark.ticker` shows the new ticker. If the console prints `[hold] SNIPER_HOLD_BENCHMARK ignored (...)`, fix what it names (missing CA, changed criteria, missing bands/rules, bad path); until then $GORK is in force. Tell the owner the result (owner-ping) and log it via `learnings_writer`.
 7. **Back to $GORK**: blank the setting (the file can stay).
 
-**$GORK in brief.** The OG gork meme coin on Solana, CA `76EDL5qNcte2ZH29quTaFzagXjWAEY83CATEjyA6pump`, fair-launched April 7, 2025. The 76ED prefix (a roughly 1-in-39,000 vanity hit) echoes "Soldier 76" and 1776 and became the community's battle standard. Its holders, "the fam" or "ghosts", run on a lore bible: the soldier (every holder), the green pill (awakening), the cat dumbbell (hold through the stall), the vault (the private channel where lore drops first), the storm (drawdowns and FUD). Anyone pushing a different CA under the gork name is "cabal" until the data says otherwise: route it to meme_sniper and let the numbers come back. It is a culture coin, not a utility pitch, and that is exactly why it makes a good ruler for hold strength.
+**$GORK in brief.** The OG gork meme coin on Solana, CA in the owner's hold benchmark (`bot_logs/gork_standard.json` / `skills/gork-lore`), fair-launched April 7, 2025. The 76ED prefix (a roughly 1-in-39,000 vanity hit) echoes "Soldier 76" and 1776 and became the community's battle standard. Its holders, "the fam" or "ghosts", run on a lore bible: the soldier (every holder), the green pill (awakening), the cat dumbbell (hold through the stall), the vault (the private channel where lore drops first), the storm (drawdowns and FUD). Anyone pushing a different CA under the gork name is "cabal" until the data says otherwise: route it to meme_sniper and let the numbers come back. It is a culture coin, not a utility pitch, and that is exactly why it makes a good ruler for hold strength.
 
 **The law.** Hold what still speaks when the chart is dead. Everything else is a flip wearing a costume. Green can fake lore. RED AUDITS IT — that is why the strongest criteria are all checked during a drawdown.
 - Fail ANY of C1/C2/C4 and the token is NOT-A-HOLD, regardless of every other score. High C5-C10 CANNOT rescue a C1/C2/C4 fail. That is exactly how cabals cosplay culture: ship the lore, buy the KOLs, caption 'diamond hands' on day 2. NEVER AVERAGE AWAY A KILL SWITCH.

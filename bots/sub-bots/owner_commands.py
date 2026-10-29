@@ -51,7 +51,7 @@ from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODES = ("off", "telegram", "file")
-HELP_TEXT = ("Commands: /roast, /recap, /autopsy [ticker|last], /manage <ticker>, /leave <ticker>. "
+HELP_TEXT = ("Commands: /roast, /recap, /autopsy [ticker|last], /manage <ticker>, /leave <ticker>, /approve <id>, /reject <id>. "
              "Plain text works too, e.g. \"roast me\" or \"autopsy $gork\".")
 
 
@@ -117,6 +117,8 @@ def parse_command(text: str):
             return ("autopsy", (arg or "last"))
         if cmd in ("manage", "leave"):
             return (cmd, arg)
+        if cmd in ("approve", "reject"):          # v1.0.15: AGENT_MODE=suggest trade answers
+            return (cmd, t.split()[1] if len(parts) > 1 else None)
         return ("help", None)
     if "autopsy" in low or "post-mortem" in low or "postmortem" in low or "what happened" in low:
         m = re.search(r"\$([A-Za-z0-9]{2,44})", t)
@@ -533,6 +535,8 @@ async def answer(text: str, *, source: str, send_alerts: bool) -> dict:
         return {"ok": True, "kind": "help", "text": HELP_TEXT}
     if kind in ("manage", "leave"):
         return owner_position_decision(kind, target, source=source)
+    if kind in ("approve", "reject"):
+        return trade_approval(kind, target, source=source)
     return await roast_now(kind, target, send=send_alerts, source=source)
 
 
@@ -581,6 +585,28 @@ def owner_position_decision(kind: str, target, *, source: str = "owner_commands"
     verb = "I'll manage" if kind == "manage" else "Leaving to you:"
     return {"ok": True, "kind": kind, "target": t,
             "text": f"👤 {verb} {_h(what)}. The bot applies it within about a minute."}
+
+
+# ── AGENT_MODE=suggest: /approve and /reject (v1.0.15) ───────────────────────
+def trade_approval(kind: str, target, *, source: str = "owner_commands", logs: str = None) -> dict:
+    import sys as _sys
+    _bots = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _bots not in _sys.path:
+        _sys.path.insert(0, _bots)
+    import agent_mode
+    if logs:
+        relay = os.path.join(os.path.dirname(logs), "json_relay")
+    else:
+        _pp = _paths()
+        logs, relay = _pp["logs"], os.path.join(_pp["ws"], "json_relay")
+    pend = agent_mode.list_pending(relay)
+    if not target:
+        lst = ", ".join(f"{r['id']} ({r['action']} {r.get('ticker')})" for r in pend) or "none"
+        return {"ok": False, "kind": kind, "text": f"Usage: /{kind} <signal id>. Pending: {_h(lst)}."}
+    agent_mode.record_answer(str(target), kind == "approve", logs, source=source)
+    _log(f"trade {kind} {target} (source={source})")
+    return {"ok": True, "kind": kind, "target": target,
+            "text": f"{'✅ Approved' if kind == 'approve' else '❌ Rejected'} {_h(target)}. The bot picks it up within seconds."}
 
 
 # ── telegram source ──────────────────────────────────────────────────────────

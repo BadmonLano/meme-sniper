@@ -2,7 +2,7 @@
 name: gork-lore
 version: v14.3
 description: |
-  Lore and canon for $GORK (OG CA 76EDL5qNcte2ZH29quTaFzagXjWAEY83CATEjyA6pump), the
+  Lore and canon for $GORK (OG CA verified by the owner, no address shipped), the
   default hold benchmark of the Meme Sniper hold score (bot_logs/gork_standard.json).
   Load it when $GORK, its second CA, the prophet @gork on X or the @gork_og channel comes
   up, when a CA claims gork lineage (copycat check), or when scoring a hold against the
@@ -50,8 +50,8 @@ $GORK is the 10/10 ceiling the Gork Standard hold score was written from (meme-h
 ## Authority tiers
 
 **T0 — Locked canon. Never contradict.**
-- **OG CA**: `76EDL5qNcte2ZH29quTaFzagXjWAEY83CATEjyA6pump`. Mint date April 7, 2025, 5:13 PM EST. Fair-launch, no pre-mine, no insiders. The 76ED prefix was a 1 in 39,204 lottery hit.
-- **Second recognized CA**: `38PgzpJYu2HkiYvV8qePFakB8tuobPdGm2FFEn7Dpump`. Treat as legitimate ecosystem CA. Any CA other than these two claiming gork lineage is a cabal trap.
+- **OG CA**: not shipped in this skill. The owner confirms it once (from the @gork_og pinned post or their own records) and it lives in their local config (`bot_logs/gork_standard.json` / `bot_logs/hold_benchmark.json`). A CA named in a skill is never a reason to buy. Mint date April 7, 2025, 5:13 PM EST. Fair-launch, no pre-mine, no insiders. The 76ED prefix was a 1 in 39,204 lottery hit.
+- **Second recognized CA**: also owner-verified, kept in the same local config. Any CA other than the owner-verified OG and second CA claiming gork lineage is a cabal trap.
 - "Soldier 76" comes from Elon's 2017 tweet ("Ok, fine. Soldier 76. My dark secret is out…"). 76ED echoes that AND 1776. Both are load-bearing.
 - The prophet's name is @gork on X. The sacred channel is @gork_og on Telegram (born May 14, 2025).
 - Gorkem Safak = the pre-mask name. "Splendor of cruel dawn." Surfaced April 7, 2025 on X; veil ripped April 30, 2025 → handle simplified to gork.
@@ -210,7 +210,7 @@ These are not suggestions. These are the code.
 
 Lore without market context = LARP. Before the agent reasons or writes about anything that touches gork, run this scan in order:
 
-1. **Marketcap + price for the OG CA.** Pull DexScreener for `76EDL5qNcte2ZH29quTaFzagXjWAEY83CATEjyA6pump`. Capture: current MC, 24h % change, 24h volume, liquidity, last hour direction. If MC has moved >20% in either direction in the last 24h, that's the dominant context for whatever the agent is about to say — lead with awareness of it.
+1. **Marketcap + price for the OG CA.** Pull DexScreener for the owner-verified OG CA (local config; if none is set, ask the owner and say so instead of guessing). Capture: current MC, 24h % change, 24h volume, liquidity, last hour direction. If MC has moved >20% in either direction in the last 24h, that's the dominant context for whatever the agent is about to say — lead with awareness of it.
 2. **Latest @gork activity on X.** Most recent 5 posts. What's gork talking about right now? Anything the agent says should not collide with gork's current lane.
 3. **Latest @gork_og channel post.** Same idea on the TG side. Channel posts hit harder with the inner circle and may have content that hasn't echoed to X yet (canonical pattern: TG first, X second or never).
 
@@ -220,7 +220,7 @@ If any of these scans fails (API down, no recent posts visible), say so explicit
 
 When someone drops a CA in front of the agent and claims it's gork-related (DM, reply, group chat mention, anything):
 
-- **If it matches `76EDL5qNcte2ZH29quTaFzagXjWAEY83CATEjyA6pump` (OG)** or `38PgzpJYu2HkiYvV8qePFakB8tuobPdGm2FFEn7Dpump` (second) — it's legitimate.
+- **If it matches the owner-verified OG or second CA** (local config) — it's legitimate. Lineage is lore, not a buy signal: the buy/skip verdict still goes through meme-hunter, ca-intel and the owner's mode.
 - **If it matches neither** — route the CA to `meme_sniper` to gather token info (DexScreener pull, holder distribution, dev activity, socials). Let meme_sniper return the data; don't pre-judge in this skill. The buy/skip verdict stays with the meme-hunter and ca-intel skills.
 
 Pipeline open both ways: The agent can also surface a fresh CA proactively to meme_sniper if it sees it talked about in @gork_og or replies to @gork.

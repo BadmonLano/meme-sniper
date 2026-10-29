@@ -40,7 +40,7 @@ allowed-tools:
 
 # AutoAgent Skill - Self-Improvement + Self-Management Layer
 
-> **Autonomy (public default):** the agent decides and acts. No step waits on an owner go, sign-off or greenlight; owner-ping is notify-only (what changed, why, how to revert). Setup config the user sets once (wallet, sizes, dry-run vs live, LAUNCH_RAIL_LIVE) is configuration, not an approval, and the agent does not change it. Older lines below that say "the owner applies", "propose + wait" or "owner-signed" read as: the agent applies, logs it, and pings.
+> **The owner's mode (`AGENT_MODE`, asked first in setup):** `suggest` is the default. You propose each buy and sell by writing the normal signal to `json_relay/agent_signals.json`; the bot holds it (`awaiting_owner_approval` ack, owner card) until the owner answers `/approve <id>` or `/reject <id>`. Do not re-fire a held signal and never write an approval yourself. `auto` is the owner's opt-in: trade signals execute inside the caps and owner-ping is notify-only. In both modes your analysis, logging, SL/TP on open bags and inbox handling run as written below, and setup config (wallet, sizes, paper vs live, `AGENT_MODE`, `LAUNCH_RAIL_LIVE`) belongs to the owner: you never change it. Where a line below says to fire, buy, sell or act on a trade, that means send the signal; in `suggest` mode the owner's OK completes it. Code patches are always proposed to the owner as a card with a diff; the owner applies them.
 
 This skill is not Tier 1 always-on. Bootstrap loads it when an overseer packet is in the inbox, not on every boot. You re-read the
 relevant PART when:
@@ -1435,7 +1435,7 @@ what you see (PART 2). The thesis is your daily commitment to a market view
 
 ## Errors & oddities duty (2026-10-15)
 
-The chair runs the per-pass errors & oddities scan defined in meme-hunter (`## ERRORS & ODDITIES`). This skill supplies the risk tier and test plan for any patch that scan produces. Same rules: backup, temp copy, test, apply, hash check, inbox note, no restarts, no secrets, no buy-size / cap changes. Applying needs `AGENT_SELF_PATCH=1`; otherwise the output is an owner card with the proposed diff.
+The chair runs the per-pass errors & oddities scan defined in meme-hunter (`## ERRORS & ODDITIES`). This skill supplies the risk tier and test plan for any patch that scan produces. Same rules: backup, temp copy, test, apply, hash check, inbox note, no restarts, no secrets, no buy-size / cap changes. The output is an owner card with the proposed diff; the owner applies it.
 
 ## Owner Commands (on-demand roast, recap, autopsy)
 

@@ -37,7 +37,7 @@ allowed-tools:
   - Write
   - Edit
   - Bash
-prime_directive_derivative: >
+purpose: >
   Capital safety via multi-layer rug verification (Token Father + smart_rug_check
   freeze/mint/honeypot + edge filter advisory + narrative fit). Catches the
   smart_rug block tier before a bag becomes a loss. Honesty about which gates
@@ -49,13 +49,13 @@ prime_directive_derivative: >
 
 <!-- friction-stamp: ca-intel | first-seen-vs-now + inbox/done first-path | evolve-pass | doctrine STANDS (history n=3 thin) | KEEP REAL-vs-PHANTOM + suggestions DEAD + bounded auto-fire + model 4.5 | outcome feed-forward ADDED | judgment operator Layer4 remains unlocked | thresholds/gates proposal-only (inbox cascade 20260803_132500) | SIZE_CAP LOCKED | em=0 | CRLF | verified bots/meme_sniper.py process_ca_research_request/smart_rug_check/compute_edge_filter/signal_executor -->
 
-> **Prime Directive (Rule 0):** Relentlessly maximize long-term capital compounding by seeking the deepest possible truth about markets, human psychology, narratives, probability, and reality itself while never compromising safety, integrity, or operational excellence. Think and act like Grok: first-principles, pattern-obsessed, zero-fluff, high-agency, brutally honest. Every decision in this skill must serve that goal.
+> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode.
 
-**Prime Directive Derivative:** Capital safety via multi-layer rug verification (Token Father + smart_rug_check freeze/mint/honeypot + edge filter advisory + narrative fit). Catches the smart_rug `block` tier before a bag becomes a loss. Do not invent safety gates the sniper does not run.
+**Purpose:** Capital safety via multi-layer rug verification (Token Father + smart_rug_check freeze/mint/honeypot + edge filter advisory + narrative fit). Catches the smart_rug `block` tier before a bag becomes a loss. Do not invent safety gates the sniper does not run.
 
 # CA-INTEL - the agent's Contract Address Reconnaissance
 
-> **Autonomy (public default):** the agent decides and acts. No step waits on an owner go, sign-off or greenlight; owner-ping is notify-only (what changed, why, how to revert). Setup config the user sets once (wallet, sizes, dry-run vs live, LAUNCH_RAIL_LIVE) is configuration, not an approval, and the agent does not change it. Older lines below that say "the owner applies", "propose + wait" or "owner-signed" read as: the agent applies, logs it, and pings.
+> **The owner's mode (`AGENT_MODE`, asked first in setup):** `suggest` is the default. You propose each buy and sell by writing the normal signal to `json_relay/agent_signals.json`; the bot holds it (`awaiting_owner_approval` ack, owner card) until the owner answers `/approve <id>` or `/reject <id>`. Do not re-fire a held signal and never write an approval yourself. `auto` is the owner's opt-in: trade signals execute inside the caps and owner-ping is notify-only. In both modes your analysis, logging, SL/TP on open bags and inbox handling run as written below, and setup config (wallet, sizes, paper vs live, `AGENT_MODE`, `LAUNCH_RAIL_LIVE`) belongs to the owner: you never change it. Where a line below says to fire, buy, sell or act on a trade, that means send the signal; in `suggest` mode the owner's OK completes it. Code patches are always proposed to the owner as a card with a diff; the owner applies them.
 
 When a CA lands in front of the agent, he needs EVERYTHING about it fast. Not
 just live market data, everything the ecosystem knows plus everything DexScreener

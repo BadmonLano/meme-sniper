@@ -1767,6 +1767,34 @@ HOT_WALLET_ADDR    = os.getenv("HOT_WALLET_ADDRESS", "")
 OWNER_OBSERVER      = os.getenv("OWNER_WALLET_ADDRESS", "")
 LEDGER_ADDR        = os.getenv("LEDGER_ADDRESS", "")
 
+
+# ── LEAGUE MODE (AudaceFi devnet league, off by default; bots/league_mode.py) ──
+# On: devnet RPC + a separate league wallet replace the mainnet ones BEFORE any key
+# loads, so mainnet keys are never used. Boot refuses on any safety problem.
+import league_mode as _league                                    # noqa: E402
+LEAGUE_MODE = _league.enabled()
+LEAGUE_CFG: dict = {}
+if LEAGUE_MODE:
+    LEAGUE_CFG = _league.load_config()
+    _lg_gen = None if LEAGUE_CFG.get("skip_genesis_check") else _league.rpc_genesis(LEAGUE_CFG["rpc_url"])
+    _lg_bad = _league.boot_problems(LEAGUE_CFG, main_addr=HOT_WALLET_ADDR, main_private=HOT_WALLET_PRIVATE,
+                                    other_addrs=(globals().get("OWNER_OBSERVER", ""), LEDGER_ADDR),
+                                    genesis_hash=_lg_gen if not LEAGUE_CFG.get("skip_genesis_check") else None)
+    if not LEAGUE_CFG.get("skip_genesis_check") and _lg_gen is None:
+        _lg_bad.append("could not read the genesis hash from LEAGUE_RPC_URL; refusing (devnet unverified)")
+    if _lg_bad:
+        sys.stderr.write("LEAGUE_MODE refused to start:\n  - " + "\n  - ".join(_lg_bad) + "\n")
+        raise SystemExit(2)
+    RPC_URL = LEAGUE_CFG["rpc_url"]
+    RPC_URL_FALLBACK = ""
+    RPC_PUBLIC_FALLBACK = ""
+    RPC_FREE_URL = RPC_URL
+    HOT_WALLET_PRIVATE = LEAGUE_CFG["wallet_private"]
+    HOT_WALLET_ADDR = LEAGUE_CFG["wallet_address"]
+    LEDGER_ADDR = ""
+LEAGUE_ALLOWLIST: set = _league.load_allowlist(LEAGUE_CFG.get("allowlist_file", "")) if LEAGUE_MODE else set()
+_LEAGUE_PENDING_USDC: dict = {}
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  Sprint 28.8.1 , LEDGER PROFIT SWEEP , HARD-CODED SAFETY CONFIG
 #  ═══════════════════════════════════════════════════════════════════════════
@@ -4166,6 +4194,9 @@ class SupervisedTask:
         return len(self._restart_history) <= self.max_restart_burst
     
     async def run(self) -> None:
+        if LEAGUE_MODE and self.name in _league.SKIP_TASKS:
+            _log(f"supervisor: {self.name} off in LEAGUE_MODE (mainnet-only or moves money)", prefix="league")
+            return
         _log(f"supervisor: starting {self.name}", prefix="super")
         try:
             await write_heartbeat(self.name, "starting")
@@ -4397,6 +4428,8 @@ async def fetch_token_data(mint: str) -> Optional[dict]:
     """
     Fetch full DEX data for a specific token. Returns the highest-liquidity pair.
     """
+    if LEAGUE_MODE:                      # devnet league tokens: price from the league executor only
+        return await _league.price(LEAGUE_CFG, mint)
     try:
         client = await _get_dex_client()
         r = await _dex_get(client, f"{DEXSCREENER_TOKEN_API}/{mint}")
@@ -24309,6 +24342,13 @@ async def signal_executor_loop() -> None:
         await write_heartbeat("signal_executor", "polling")
         
         try:
+            try:   # v1.0.15: owner-approved suggestions go back on the bus
+                import agent_mode as _am
+                _rel = _am.release(_JSON_RELAY, _BOT_LOGS, AGENT_SIGNALS_FILE)
+                if any(_rel.values()):
+                    _log(f"agent_mode: owner approvals {_rel}", prefix="exec")
+            except Exception as _are:
+                _log(f"agent_mode release err: {_are}", prefix="exec")
             # ── ANY agent_signals* FILE GETS DIGESTED (2026-08-10) ──────────
             # The owner: "anything that says agent_signals, the bot should attempt the
             # digest and give him what the feedback is if no accept."
@@ -24944,6 +24984,19 @@ async def process_signal(sig: dict, pending_param_requests: dict) -> None:
     action = _normalize_signal_action(sig)
     sig_id = sig.get("signal_id") or sig.get("id") or _now_iso()
     
+    # v1.0.15: AGENT_MODE=suggest (default) holds agent buys/sells for the owner's OK.
+    try:
+        import agent_mode as _am
+        if _am.needs_owner_ok(action, sig):
+            _am.hold(sig, str(sig_id), action, _JSON_RELAY, _BASE.parent / "owner_inbox")
+            _log(f"agent_mode=suggest: {action} {sig.get('ticker') or _short_mint(sig.get('mint') or '')} "
+                 f"held for owner approval ({sig_id})", prefix="exec")
+            _signal_ack(sig, sig_id, action, "awaiting_owner_approval", True,
+                        summary=f"{action} held: AGENT_MODE=suggest, waiting for the owner's /approve {sig_id}")
+            return
+    except Exception as _ame:
+        _log(f"agent_mode gate err (holding signal is the safe side): {_ame}", prefix="exec")
+        return
     # v14: every touch of an open position stamps the check time; protection
     # fields on ANY position signal arm/update SL/TP; a touch without them is logged.
     _pmint = sig.get("mint")
@@ -26379,10 +26432,28 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
                     "max_allowed_sol": round(_pct_cap, 4)})
         return
     
+    if LEAGUE_MODE:                                   # AudaceFi league: allowlist, season window, USDC size
+        _lg_open = len([k for k, p in (load_positions() or {}).items() if isinstance(p, dict) and not str(k).startswith("_")])
+        _lg_block = _league.buy_gate(LEAGUE_CFG, mint, LEAGUE_ALLOWLIST, usdc_amount=sig.get("amount_usdc"),
+                                     open_league_positions=_lg_open)
+        if _lg_block:
+            _lk, _lwhy = _lg_block
+            _log(f"executor: LEAGUE BUY BLOCKED {ticker} , {_lk}: {_lwhy}", prefix="league")
+            await write_signal_response(sig_id, "rejected", error=f"{_lk}: {_lwhy}")
+            await write_signal_rejected_packet(sig_id, mint, ticker, amount_sol, _lk, _lwhy)
+            return
+        _lg_usdc = _league.buy_size_usdc(LEAGUE_CFG, sig.get("amount_usdc"))
+        try:
+            _lg_px = float(await get_sol_price_usd() or 0)
+        except Exception:
+            _lg_px = 0.0
+        amount_sol = round(_lg_usdc / _lg_px, 6) if _lg_px > 0 else amount_sol   # SOL-equivalent for owner rails
+        _LEAGUE_PENDING_USDC[mint] = _lg_usdc
+        _log(f"executor: LEAGUE buy {ticker} {_lg_usdc} USDC (~{amount_sol} SOL-equiv)", prefix="league")
     # v13.0: replaced trading-halt check with wallet-floor check. Buys are
     # rejected when wallet is at or below WALLET_FLOOR_SOL (0.05 SOL by default)
     # so the bot preserves enough SOL for sell-side transactions to land.
-    above_floor, current_sol = await is_wallet_above_floor()
+    above_floor, current_sol = (True, 0.0) if LEAGUE_MODE else await is_wallet_above_floor()
     if not above_floor and not _WALLET_READ["ok"]:
         _why = "wallet unread (RPC down), buy not sent; retry when RPC recovers"
         await write_signal_response(sig_id, "rejected", error=f"rpc_down: {_why}")
@@ -26398,7 +26469,7 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
         return
     
     # Check cap
-    max_cap = await get_current_max_entry_sol()
+    max_cap = amount_sol if LEAGUE_MODE else await get_current_max_entry_sol()   # league: USDC caps above
     if amount_sol > max_cap:
         wallet_sol = await get_wallet_sol_value()
         baseline = load_baseline() or {}
@@ -26442,7 +26513,7 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
              prefix="exec")
     
     # Check wallet balance
-    wallet_sol = await get_wallet_sol_value()
+    wallet_sol = (amount_sol / 0.95 + 1e-9) if LEAGUE_MODE else await get_wallet_sol_value()   # league: executor checks USDC
     if amount_sol > wallet_sol * 0.95:  # leave 5% margin for fees
         await write_signal_response(sig_id, "rejected", error="wallet_insufficient")
         return
@@ -26696,7 +26767,7 @@ async def execute_buy_signal(sig: dict, pending_param_requests: dict) -> None:
                     _age = int((_now_ts() - _pc / 1000) / 60) if _pc else None
                 except Exception:
                     _age = None
-                _rc = await smart_rug_check(mint, age_minutes=_age)
+                _rc = {} if LEAGUE_MODE else await smart_rug_check(mint, age_minutes=_age)   # league: allowlist is the screen
                 if _rc.get("smart_check_verdict") == "block":
                     _rb = ("recheck_rug_block", f"fresh rug check: {_rc.get('block_reason') or 'block'}")
         except Exception as _rce:
@@ -28904,6 +28975,9 @@ async def execute_ledger_sweep(sig: dict) -> None:
       - destination address (always _HARDCODED_LEDGER_DESTINATION)
       - safety caps
     """
+    if LEAGUE_MODE:
+        await write_signal_response(sig.get("signal_id") or _now_iso(), "rejected", error="league_mode: no ledger sweeps")
+        return
     sig_id = sig.get("signal_id", _now_iso())
     requested_amount = sig.get("amount_sol")  # optional
     reasoning = sig.get("reasoning", "manual sweep")
@@ -30636,6 +30710,56 @@ async def _monitor_watchdog_loop() -> None:
     """v1.0.4: alert the owner if the position monitor goes stale with open bags."""
     from monitor_watchdog import watchdog_loop
     await watchdog_loop(_BOT_LOGS)
+
+
+_LEAGUE_FLAT_ALERTED: dict = {}
+
+
+async def league_flatten_loop() -> None:
+    """LEAGUE_MODE only: flatten every bag to USDC before the snapshot (USDC only at start and end).
+    Pauses buys (the buy gate) and sells 100% through the league executor; alerts the agent once per season."""
+    if not LEAGUE_MODE:
+        return
+    while True:
+        try:
+            ph = _league.phase(LEAGUE_CFG)
+            if ph["phase"] == "flatten":
+                pos = load_positions() or {}
+                orders = _league.flatten_orders(pos, has_inflight_sell, now_tag=str(int(_now_ts())))
+                key = ph["season_end"]
+                if orders and not _LEAGUE_FLAT_ALERTED.get(key):
+                    _LEAGUE_FLAT_ALERTED[key] = True
+                    try:
+                        write_inbox_packet_generic({
+                            "id": f"x_evt_league_flatten_{int(_now_ts())}", "type": "league_flatten",
+                            "received_at": _now_iso(), "priority": "high",
+                            "context": {"open_bags": len(orders), **ph,
+                                        "note": "League snapshot is near: buys paused, selling every bag to USDC. "
+                                                "No action needed unless a sell fails."}},
+                            prefix="evt", identifier="league_flatten")
+                        await send_telegram(f"🏁 LEAGUE: flattening {len(orders)} bag(s) to USDC before the snapshot "
+                                            f"({ph['minutes_to_end']:.0f} min to end)")
+                    except Exception:
+                        pass
+                for o in orders:
+                    try:
+                        await execute_sell_signal(o)
+                    except Exception as e:
+                        _log(f"league flatten sell err {o['mint'][:8]}: {e}", prefix="league")
+                if orders and ph["minutes_to_end"] <= float(LEAGUE_CFG.get("flatten_buffer_min") or 120) / 2:
+                    try:
+                        write_inbox_packet_generic({
+                            "id": f"x_evt_league_not_flat_{int(_now_ts())}", "type": "league_not_flat",
+                            "received_at": _now_iso(), "priority": "high",
+                            "context": {"open_bags": [o["mint"] for o in orders], **ph,
+                                        "note": "Still holding non-USDC near the snapshot. Holding one at the "
+                                                "snapshot voids the season. Sell now."}},
+                            prefix="evt", identifier="league_not_flat")
+                    except Exception:
+                        pass
+        except Exception as e:
+            _log(f"league flatten loop err: {e}", prefix="league")
+        await asyncio.sleep(60)
 
 
 async def position_monitor_loop() -> None:
@@ -35486,6 +35610,8 @@ async def jupiter_quote_fresh(input_mint: str, output_mint: str, amount: int, sl
     home-network or DNS hiccups, NOT Jupiter-side issues. Real API errors
     (4xx/5xx) skip retry , those mean the request itself is bad.
     """
+    if LEAGUE_MODE:                      # no Jupiter in the league (mainnet quotes, unsupported route)
+        return None
     params = {
         "inputMint": input_mint,
         "outputMint": output_mint,
@@ -35546,6 +35672,8 @@ async def jupiter_quote_fresh(input_mint: str, output_mint: str, amount: int, sl
 async def jupiter_swap_execute(quote: dict, *, priority_fee_lamports: int = 500_000,
                                skip_preflight: bool = False, track_meta: dict | None = None) -> dict:
     """Oct 2026: Swap API V2 when JUPITER_SWAP_V2=true (v1 fallback), fee-sweep recognition."""
+    if LEAGUE_MODE:
+        return {"success": False, "error": "league_mode: Jupiter execution disabled"}
     return await _upg_swap(_jupiter_swap_execute_v1, quote,
                            dict(priority_fee_lamports=priority_fee_lamports,
                                 skip_preflight=skip_preflight, track_meta=track_meta))
@@ -35886,6 +36014,9 @@ async def jupiter_swap_buy(mint: str, amount_sol: float, slippage_bps: int = 150
     Buy `mint` with `amount_sol` SOL. Standard priority fee.
     Returns {success, tx_signature, buy_price_usd, token_amount, slippage_pct, ...}.
     """
+    if LEAGUE_MODE:
+        return await _league.execute_buy(LEAGUE_CFG, mint, _LEAGUE_PENDING_USDC.pop(mint, 0.0)
+                                         or _league.buy_size_usdc(LEAGUE_CFG))
     lamports = int(amount_sol * 1_000_000_000)
     
     # v13.3 — CHAIN-TRUTH FILLS. The position used to record the QUOTE's outAmount
@@ -35963,6 +36094,8 @@ async def jupiter_swap_sell(mint: str, token_amount: float, slippage_bps: int = 
     exactly when it mattered — sells into draining liquidity. The April forensics
     measured SL exits at -30.4% actual vs -20% config; the quote-based ledger
     could not even SEE that gap. Quote remains the fallback, tagged as such."""
+    if LEAGUE_MODE:
+        return await _league.execute_sell(LEAGUE_CFG, mint, token_amount)
     pre_sol = await _wallet_sol_balance()
     quote = await jupiter_quote_fresh(mint, SOL_MINT, int(token_amount), slippage_bps)
     if not quote:
@@ -36378,6 +36511,8 @@ async def jupiter_swap_sell_panic(mint: str, token_amount: float, position: dict
       - 20% slippage tolerance (panic mode)
       - Full transaction telemetry to sl_telemetry.log
     """
+    if LEAGUE_MODE:
+        return await _league.execute_sell(LEAGUE_CFG, mint, token_amount)
     ticker = position.get("ticker", "?")
     
     telemetry = {
@@ -40972,6 +41107,7 @@ async def main() -> None:
         SupervisedTask("deep_research_handler", deep_research_response_handler_loop).run(),
         SupervisedTask("signal_executor", signal_executor_loop).run(),
         SupervisedTask("position_monitor", position_monitor_loop).run(),
+        SupervisedTask("league_flatten", league_flatten_loop).run(),
         SupervisedTask("monitor_watchdog", _monitor_watchdog_loop).run(),
         SupervisedTask("open_bag_price", open_bag_price_loop).run(),
         SupervisedTask("wallet_tracker", wallet_tracker_loop).run(),

@@ -2,7 +2,9 @@
 
 **Who this is for:** the agent setting Meme Sniper up for its owner. "You" is the agent; "the owner" is the human whose wallet and rules these are. Read this once, top to bottom, before the first start. The skills ship as tested defaults; change them only with the owner (section 8).
 
-> **Trading ships live.** Real buys, sells, sweeps, burns and fee claims go on-chain from the first start unless the owner turns on **paper mode** (`SNIPER_PAPER_MODE=1`, section 4.2), which simulates every trade at real quotes and sends nothing. Token launches ship off-chain (`LAUNCH_RAIL_LIVE=0`, dry runs only) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before you start anything.
+> **Ask these first, in this order (wizard menu 2 does the same):**
+> 1. **Agent autonomy (`AGENT_MODE`).** `suggest` (default, preselected): the agent proposes every buy and sell and the bot waits for the owner's `/approve <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto`: **warning** - the agent buys and sells on its own inside the caps with no per-trade sign-off. The wizard makes the owner type `AUTO`; `setup.json` needs `"AGENT_CONFIRM_AUTO": "AUTO"`. Never pick auto for the owner.
+> 2. **Paper or live (`SNIPER_PAPER_MODE`).** Paper is the default for new setups (`bots/.env.example` ships `SNIPER_PAPER_MODE=1`): every trade is simulated at real quotes, nothing is signed or sent, and no wallet private key is needed. **Live keys are opt-in**: only after the owner chooses live does the wizard ask for the burner wallet's private key, with a warning, and leaving paper needs `LIVE` typed (section 4.2). Token launches stay off-chain (`LAUNCH_RAIL_LIVE=0`) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before going live.
 
 > **The owner runs setup once by hand.** Start `python bots/sniper.py` and use the setup wizard (menu 2) and **Sign in to X** (menu 3) at least once: X sign-in needs a human at the browser window (2FA, captcha). After that, you (the agent) can fill or change the rest through `setup.json` or the Settings screen. If `bots/.env` is missing, the wizard, `setup.json`, the Settings screen and token refresh all create it from `bots/.env.example`.
 
@@ -89,7 +91,7 @@ You can also run one option directly: `--start`, `--dashboard`, `--wizard`, `--l
 
 **First run.** If `bots/.env` is missing or incomplete (wallet key, RPC or model key), the wizard opens on its own.
 
-**Agent first-run questions.** Your SI agent also asks you, before the first trade: paper or live (default live), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = always). See README "Safety caps and your settings".
+**Agent first-run questions.** Your SI agent also asks you, before the first trade, starting with agent autonomy (`AGENT_MODE`, default `suggest`) and then paper or live (default paper), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = always). See README "Safety caps and your settings".
 
 **Skipping the wizard (`setup.json`).** You can configure without the interactive wizard. Put `setup.json` in the repo root (or in `bots/`):
 
@@ -132,7 +134,7 @@ Every bot resolves paths from this one root and creates any missing folders on f
 
 ## 4. Wallet, sizes and going live
 
-This is configuration, not approval: once set, the system is fully autonomous.
+These settings are configuration. How much the agent does on its own is the owner's `AGENT_MODE` choice (asked first): in `suggest` (default) every buy and sell waits for the owner's OK; in `auto` the agent trades inside these caps without asking.
 
 Ask the owner to pick one:
 
@@ -140,7 +142,7 @@ Ask the owner to pick one:
 - **Learn as it goes.** Fill in only the wallet and keys, and run on the defaults. The system tightens itself from results and logs every change to `bot_logs/`.
 - **Mix.** The owner sets the must-haves and the rest learns.
 
-The safety switches set here (wallet, buy sizes, `LAUNCH_RAIL_ENABLED` off / `LAUNCH_RAIL_LIVE` off by default) stay as the owner set them. After this step you decide and act on your own (buys, sells, KOL/dev list changes, learnings promotion, patches, launches, profit sweeps), and owner-ping is notify-only. Nothing waits for a greenlight. Launches stay off-chain until the owner sets `LAUNCH_RAIL_LIVE=1`.
+The safety switches set here (wallet, buy sizes, `LAUNCH_RAIL_ENABLED` off / `LAUNCH_RAIL_LIVE` off by default) stay as the owner set them. After this step you operate within the owner's chosen mode: in `suggest` (default) you propose buys and sells and the bot holds them for the owner's OK; in `auto` you send them and owner-ping is notify-only. KOL/dev list changes, learnings promotion and profit sweeps follow the owner's rules; code patches are always proposed to the owner as a card with a diff. Launches stay off-chain until the owner sets `LAUNCH_RAIL_LIVE=1`.
 
 **Launching without asking: who decides.** Two things decide it, and nothing else:
 
@@ -158,6 +160,11 @@ The wizard asks for a buy size and default SL/TP. They are live settings, not no
 | `SNIPER_BUY_SIZE_SOL` | Replaces `SIZE_CAP_BASE_SOL` as the base entry cap (the tier ladder is scaled down to match, never up), and is used as the size when a buy signal has no `amount_sol`. The `MIN_BUY_SOL` floor, wallet floor and concentration checks still apply. |
 | `SNIPER_DEFAULT_SL_PCT` / `SNIPER_DEFAULT_TP_PCT` | Armed as the stop-loss / take-profit on every new position whose buy signal sets none (inside the `PROTECT_*` bounds). The agent can change them per trade with `set_protection`. |
 | `PROTECT_DEFAULT_STOP` | Default `true`. A flip bag with no valid agent stop sells on its default flip stop (`stop_loss_pct`) through the armed-protection path. Agent levels always win. |
+| `LEAGUE_MODE` | Default `false`. `true` runs Sniper as an AudaceFi devnet league bot (see `bots/league_mode.py` and the League mode section of the meme-hunter skill). Live mainnet path is unchanged when off. |
+| `LEAGUE_RPC_URL` / `LEAGUE_WALLET_ADDRESS` / `LEAGUE_WALLET_KEYPAIR_PATH` (or `LEAGUE_WALLET_PRIVATE_KEY`) / `LEAGUE_USDC_MINT` | Devnet RPC (checked by URL and genesis hash), a separate league wallet (refused if it matches the main wallet or key), and the league USDC mint. |
+| `LEAGUE_ALLOWLIST_FILE` / `LEAGUE_CATEGORY` | Category allowlist (JSON list of mints, `{"mints": [...]}` or `{"degen": [...]}`); no list = no league buys. Category defaults to `degen`. |
+| `LEAGUE_SEASON_START` / `LEAGUE_SEASON_END` / `LEAGUE_FLATTEN_BUFFER_MIN` | Season window (default Mon 00:00 to Sat 00:00 UTC); buys stop and bags flatten to USDC this many minutes (120) before each snapshot. |
+| `LEAGUE_BUY_USDC` / `LEAGUE_MAX_BUY_USDC` / `LEAGUE_EXECUTOR_MODULE` | League buy size and cap in USDC (25 / 100); the AudaceFi supported-API executor module (buy/sell/price). Without it league trades are refused. |
 | `SNIPER_LEARNING_MODE` | Learning mode (below). Off by default. |
 | `SNIPER_LEARN_REST` | The wizard's "let the system learn the rest". With learning mode on, it also sends the agent a tune invitation after each learning step, so the other filters get tuned from the same results through the normal tune-response path. Off: learning only touches size and SL/TP. |
 
@@ -299,6 +306,8 @@ Telegram is on when `ALERT_CHANNELS` includes `telegram` (or is blank) and `TELE
 
 ### 6.5 Owner commands (optional, off by default)
 
+In `AGENT_MODE=suggest` these also carry trade approvals: `/approve <id>` and `/reject <id>` (no owner commands set up? run `python bots/approve.py` to list and approve on the machine).
+
 Ask the agent for a roast, recap or trade autopsy whenever you want instead of waiting for the nightly 2 AM report.
 
 | Command | What you get |
@@ -307,6 +316,7 @@ Ask the agent for a roast, recap or trade autopsy whenever you want instead of w
 | `/recap` | The same judges, framed as a recap (strong, weak, missed, next) |
 | `/autopsy` or `/autopsy last` | The latest closed trade: PnL, exit trigger, post-close watch (did it run after you sold) |
 | `/autopsy gork` or `/autopsy $gork` | The latest closed trade on that ticker |
+| `/approve <id>` / `/reject <id>` | Answer a trade the agent suggested (`AGENT_MODE=suggest`); `/approve` alone lists pending ones |
 | `/manage <ticker>` or `/leave <ticker>` | Answer an owner-position question (section 6.6) |
 | Plain text | "roast me", "recap please", "autopsy on $gork": commands are case-insensitive |
 

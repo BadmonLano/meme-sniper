@@ -289,12 +289,23 @@ def selected_providers(env: dict) -> list:
     return order + extra
 
 
+def _paper(env: dict) -> bool:
+    """Paper unless SNIPER_PAPER_MODE is explicitly off (new setups default to paper)."""
+    v = str((env or {}).get("SNIPER_PAPER_MODE", "") or "").strip()
+    return _on(v) if v else True
+
+
+def _required(env: dict) -> tuple:
+    """Live keys are opt-in: paper mode needs no wallet private key."""
+    return tuple(k for k in REQUIRED_KEYS if not (k == "HOT_WALLET_PRIVATE_KEY" and _paper(env)))
+
+
 def env_complete(env: dict) -> bool:
     c = llm_choice(env)
     if c:
         if not any(provider_ready(p, env) for p in c if p):
             return False
-        return all(env.get(k) for k in REQUIRED_KEYS if k != "GROK_API_KEY")
+        return all(env.get(k) for k in _required(env) if k != "GROK_API_KEY")
     ollama = str(env.get("OLLAMA_ENABLED", "")).lower() in ("true", "1", "yes") or \
         (str(env.get("OLLAMA_CLOUD_ENABLED", "")).lower() in ("true", "1", "yes") and env.get("OLLAMA_CLOUD_API_KEY"))
     other = (env.get("OPENAI_API_KEY") and env.get("OPENAI_MODEL")) or \
@@ -302,7 +313,7 @@ def env_complete(env: dict) -> bool:
         (env.get("OPENAI_COMPAT_BASE_URL") and env.get("OPENAI_COMPAT_MODEL"))
     if not (env.get("GROK_API_KEY") or env.get("XAI_API_KEY") or ollama or other):
         return False
-    return all(env.get(k) for k in REQUIRED_KEYS if k != "GROK_API_KEY")
+    return all(env.get(k) for k in _required(env) if k != "GROK_API_KEY")
 
 
 def write_env(values: dict, path: Path = ENV_FILE, template: Path = ENV_EXAMPLE) -> Path:
@@ -352,21 +363,46 @@ def _on(v) -> bool:
     return str(v or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-PAPER_WARNING = ("PAPER mode: the full pipeline runs (feed, filters, rug checks, decisions, exits) but buys and "
-                 "sells are simulated at real quotes with estimated slippage and fees. No transaction is sent and "
-                 "launches are dry runs. Paper results live in bot_logs/paper/. Live trading stays the default.")
+PAPER_WARNING = ("PAPER mode (default): the full pipeline runs (feed, filters, rug checks, decisions, exits) but buys "
+                 "and sells are simulated at real quotes with estimated slippage and fees. No transaction is sent, "
+                 "launches are dry runs and no wallet private key is needed. Paper results live in bot_logs/paper/.\n"
+                 "LIVE is opt-in: it signs real transactions with your burner wallet key. Use a fresh burner funded "
+                 "only with what you can lose.")
+
+AGENT_MODE_WARNING = ("How much can the agent do on its own?\n"
+                      "  suggest (default): it proposes each buy and sell and WAITS for your OK "
+                      "(/approve <id> or python bots/approve.py <id>). Nothing trades until you approve.\n"
+                      "  auto: WARNING - it buys and sells on its own inside your caps, with no per-trade sign-off. "
+                      "With live keys that is real money moving without asking you.")
+
+
+def agent_mode_answer(cur: dict, answers: dict | None) -> str:
+    """First setup question. Default suggest; auto needs an explicit choice (and AUTO typed interactively)."""
+    now = str(cur.get("AGENT_MODE") or "").strip().lower()
+    now = now if now in ("suggest", "auto") else "suggest"
+    if answers is not None:
+        v = str(answers.get("AGENT_MODE", now) or "").strip().lower()
+        return v if v in ("suggest", "auto") else "suggest"
+    console.print(Panel(AGENT_MODE_WARNING, border_style="red", title="1. Agent autonomy"))
+    v = Prompt.ask("Agent mode", choices=["suggest", "auto"], default=now)
+    if v == "auto" and now != "auto":
+        if Prompt.ask("The agent will trade without asking you. Type AUTO to confirm",
+                      default="", show_default=False).strip() != "AUTO":
+            console.print("[yellow]not confirmed; staying in suggest mode[/]")
+            return "suggest"
+    return v
 
 
 def paper_mode_answer(cur: dict, answers: dict | None) -> str:
     """Explicit opt-in (defaults to No). Leaving paper for live needs the word LIVE typed."""
-    was = _on(cur.get("SNIPER_PAPER_MODE"))
+    was = _paper(cur)
     if answers is not None:
         want = _on(answers.get("SNIPER_PAPER_MODE", "1" if was else "0"))
         if was and not want and str(answers.get("SNIPER_CONFIRM_LIVE", "")).strip() != "LIVE":
             return "1"
         return "1" if want else "0"
-    console.print(Panel(PAPER_WARNING, border_style="yellow", title="Paper Mode"))
-    want = Confirm.ask("Run in PAPER mode (simulated, no real transactions)?", default=False)
+    console.print(Panel(PAPER_WARNING, border_style="yellow", title="2. Paper or live"))
+    want = Confirm.ask("Run in PAPER mode (simulated, no real transactions)?", default=True)
     if was and not want:
         if Prompt.ask("Switching back to LIVE trading with real funds. Type LIVE to confirm",
                       default="", show_default=False).strip() != "LIVE":
@@ -383,7 +419,13 @@ def apply_setup_json() -> bool:
         return False
     data = _read_json(p, {}) or {}
     env = data.get("env") if isinstance(data.get("env"), dict) else {}
-    if "SNIPER_PAPER_MODE" in env and _on(read_env().get("SNIPER_PAPER_MODE")) and not _on(env["SNIPER_PAPER_MODE"]) \
+    if str(env.get("AGENT_MODE", "")).strip().lower() == "auto" \
+            and str(read_env().get("AGENT_MODE", "")).strip().lower() != "auto" \
+            and str(env.get("AGENT_CONFIRM_AUTO", "")).strip() != "AUTO":
+        env = {k: v for k, v in env.items() if k != "AGENT_MODE"}
+        log("setup.json asked for AGENT_MODE=auto without AGENT_CONFIRM_AUTO=AUTO; staying in suggest")
+    env.pop("AGENT_CONFIRM_AUTO", None)
+    if "SNIPER_PAPER_MODE" in env and _paper(read_env()) and not _on(env["SNIPER_PAPER_MODE"]) \
             and str(env.get("SNIPER_CONFIRM_LIVE", "")).strip() != "LIVE":
         env = {k: v for k, v in env.items() if k != "SNIPER_PAPER_MODE"}
         log("setup.json asked to leave paper mode without SNIPER_CONFIRM_LIVE=LIVE; staying in paper")
@@ -493,16 +535,18 @@ def menu_panel() -> Panel:
 # ── wizard ───────────────────────────────────────────────────────────────────
 # ── wizard status ──
 EXTRA_FIELDS = [   # (key, prompt, secret, default): asked as yes/no or extra keys, shown in the status table
+    ("AGENT_MODE", "Agent autonomy (suggest = waits for your OK, auto = trades on its own)", False, "suggest"),
     ("LLM_MAIN", "Main brain", False, "grok"),
     ("LLM_FALLBACK", "Fallback brain (none = no fallback)", False, "ollama"),
     ("X_BEARER_TOKEN", "X API bearer token (optional; or use menu 3, Sign in to X)", True, ""),
     ("SNIPER_LEARN_REST", "Let the system learn the rest (with learning mode on, also tune the other filters)?", False, "true"),
     ("SNIPER_LEARNING_MODE", "Turn on LEARNING mode (starts small, adjusts size and SL/TP from its own closed trades)?", False, "0"),
-    ("SNIPER_PAPER_MODE", "Run in PAPER mode (simulated, no real transactions)?", False, "0"),
+    ("SNIPER_PAPER_MODE", "Run in PAPER mode (simulated, no real transactions)?", False, "1"),
 ]
 YESNO_KEYS = ("LAUNCH_RAIL_LIVE", "LAUNCH_RAIL_ENABLED", "SNIPER_LEARN_REST", "SNIPER_LEARNING_MODE", "SNIPER_PAPER_MODE",
               "OLLAMA_ENABLED", "OLLAMA_CLOUD_ENABLED")
 AREAS = [
+    ("Autonomy", ("AGENT_MODE", "SNIPER_PAPER_MODE")),
     ("Wallet", ("HOT_WALLET_PRIVATE_KEY", "HOT_WALLET_ADDRESS", "LEDGER_ADDRESS")),
     ("RPC", ("RPC_URL", "HELIUS_API_KEY", "HELIUS_DAILY_CREDIT_CAP")),
     ("Brain / LLM", None),       # dynamic: main + fallback, then only the selected providers' rows
@@ -514,7 +558,7 @@ AREAS = [
                         "LAUNCH_MAX_DEV_BUY_SOL", "OWN_LAUNCH_MODE", "OWN_LAUNCH_TREASURY_PCT")),
     ("Safety caps", ("DAILY_LOSS_STOP_SOL", "DAILY_BUY_CAP", "MINT_COOLDOWN_HOURS", "LOSS_STREAK_PAUSE",
                      "MAX_OPEN_POSITIONS", "TRADING_HOURS", "TRADING_TZ")),
-    ("Modes", ("LAUNCH_RAIL_ENABLED", "LAUNCH_RAIL_LIVE", "SNIPER_PAPER_MODE", "SNIPER_LEARNING_MODE", "SNIPER_LEARN_REST")),
+    ("Modes", ("LAUNCH_RAIL_ENABLED", "LAUNCH_RAIL_LIVE", "SNIPER_LEARNING_MODE", "SNIPER_LEARN_REST")),
 ]
 # blank is a valid answer here (blank = the built-in default / always), so "fill only what is missing" skips them
 # once they have been seen; SNIPER_WIZARD_SAFETY=0 hides the Safety caps questions (kill switch)
@@ -533,7 +577,8 @@ def _brain_ok(env: dict) -> bool:
 
 def setup_missing(env: dict) -> list:
     """Short names of what a boot needs and is missing (never values)."""
-    miss = [k for k in IMPORTANT if not str(env.get(k) or "").strip()]
+    miss = [k for k in IMPORTANT if not str(env.get(k) or "").strip()
+            and not (k == "HOT_WALLET_PRIVATE_KEY" and _paper(env))]
     am = _alerts()
     if am is not None:
         for ch in am.channels(env):
@@ -795,6 +840,8 @@ def _ask_field(key: str, cur: dict) -> str | None:
         console.print(Panel(LAUNCH_LIVE_WARNING, border_style="red", title="Token Launches"))
         on = str(cur.get(key) or default).strip().lower() not in ("0", "false", "no", "off")
         return "1" if Confirm.ask(label, default=on) else "0"
+    if key == "AGENT_MODE":
+        return agent_mode_answer(cur, None)
     if key == "SNIPER_PAPER_MODE":
         return paper_mode_answer(cur, None)
     if key == "ALERT_CHANNELS":
@@ -841,9 +888,19 @@ def _wizard_interactive(out_path: Path) -> Path | None:
                        style=GREEN if not miss else "bold red"))
     console.print("1 fill only what is missing   2 edit one item   3 go through everything")
     mode = choose(console, "choose", ["1", "2", "3"], "1")
+    first: dict = {}
+    if mode != "2":   # v1.0.15: autonomy first, then paper/live, then (live only) the wallet key
+        for fk in ("AGENT_MODE", "SNIPER_PAPER_MODE"):
+            if mode == "3" or not str(cur.get(fk) or "").strip():
+                fv = _ask_field(fk, {**cur, **first})
+                if fv is not None:
+                    first[fk] = fv
+        if not _paper({**cur, **first}):
+            console.print(Panel("LIVE trading: next comes your burner wallet's private key. It is typed hidden, "
+                                "stored only in bots/.env and never shown.", border_style="red", title="Live keys"))
     keys = _status_keys(cur)
     if mode == "1":
-        todo = _missing_keys(cur)
+        todo = _missing_keys({**cur, **first})
         if not todo:
             console.print(f"[{GREEN}]nothing missing[/]")
             return out_path
@@ -853,8 +910,10 @@ def _wizard_interactive(out_path: Path) -> Path | None:
         todo = [keys[i - 1] for i in idx if 1 <= i <= len(keys)]
     else:
         todo = list(keys)
-    vals: dict = {}
-    done: set = set()
+    vals: dict = dict(first)
+    done: set = set(first) | ({"AGENT_MODE", "SNIPER_PAPER_MODE"} if mode != "2" else set())
+    if _paper({**cur, **vals}):
+        done.add("HOT_WALLET_PRIVATE_KEY")   # live keys are opt-in: not asked in paper mode
     while todo:
         k = todo.pop(0)
         if k in done:
@@ -925,7 +984,8 @@ def wizard(out_path: Path = ENV_FILE, answers: dict | None = None) -> Path | Non
     console.print(Panel("Setup wizard. Secrets are typed hidden and never shown. "
                         "Leave a field blank to keep its current value.", border_style=PURPLE))
     cur = read_env(out_path)
-    vals = {}
+    vals = {"AGENT_MODE": agent_mode_answer(cur, answers)}   # first question
+    vals["SNIPER_PAPER_MODE"] = paper_mode_answer(cur, answers)
     for key, label, secret, default in WIZARD_FIELDS:
         if key == "LAUNCH_RAIL_LIVE":   # explicit yes/no, defaults to off-chain, loud warning first
             if answers is not None:
@@ -955,7 +1015,6 @@ def wizard(out_path: Path = ENV_FILE, answers: dict | None = None) -> Path | Non
         ("1" if Confirm.ask("Turn on LEARNING mode (starts small, adjusts size and SL/TP from its own "
                             "closed trades in small logged steps)?", default=False) else "0")
     vals["SNIPER_LEARNING_MODE"] = str(lm)
-    vals["SNIPER_PAPER_MODE"] = paper_mode_answer(cur, answers)
     write_env(vals, out_path)
     owner_rules_step(answers.get("_rules") if answers is not None else None,
                      interactive=answers is None, root=out_path.parent if answers is not None else ROOT)
@@ -1768,7 +1827,7 @@ def _smoke_paper_learning() -> bool:
         ok = all(v is True for v in res.values())
         console.print(f"smoke: paper+learning {json.dumps(res)} -> {'OK' if ok else 'FAIL'}")
         # wizard: paper defaults off; leaving paper needs LIVE typed
-        w = paper_mode_answer({}, {}) == "0" and paper_mode_answer({"SNIPER_PAPER_MODE": "1"}, {"SNIPER_PAPER_MODE": "0"}) == "1" \
+        w = paper_mode_answer({}, {}) == "1" and paper_mode_answer({"SNIPER_PAPER_MODE": "0"}, {}) == "0" and paper_mode_answer({"SNIPER_PAPER_MODE": "1"}, {"SNIPER_PAPER_MODE": "0"}) == "1" \
             and paper_mode_answer({"SNIPER_PAPER_MODE": "1"}, {"SNIPER_PAPER_MODE": "0", "SNIPER_CONFIRM_LIVE": "LIVE"}) == "0"
         console.print(f"smoke: paper wizard opt-in/confirm -> {'OK' if w else 'FAIL'}")
         return ok and w

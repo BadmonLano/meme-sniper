@@ -2,6 +2,14 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.15 (2026-10-29): owner-chosen agent autonomy (suggest by default), paper by default, league mode
+For the cursor.directory review: the published skills no longer override human-in-the-loop.
+- **`AGENT_MODE` (new, asked FIRST in setup):** `suggest` (default) = the agent proposes buys and sells and the bot holds them (`awaiting_owner_approval` ack + owner card in `owner_inbox/`) until the owner answers `/approve <id>` / `/reject <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto` = the old behaviour, behind a warning (wizard: type `AUTO`; setup.json: `AGENT_CONFIRM_AUTO=AUTO`). Gated actions: buy, sell, sell_holding, harvest_holding, panic_sell. Bot-armed SL/TP exits, the stuck-bag watchdog and SL/TP changes are not held. `bots/agent_mode.py`, `bots/approve.py`.
+- **Paper by default, live keys opt-in:** `bots/.env.example` ships `SNIPER_PAPER_MODE=1`. The wizard asks autonomy, then paper or live (paper preselected); the wallet private key is asked only after the owner opts into live, with a warning, and paper setups are complete without it. Existing `bots/.env` files keep their values.
+- **Skills:** "Prime Directive (Rule 0)" override wording replaced by "operate within the owner's chosen mode"; the "Autonomy (public default)" notes now describe suggest/auto; `AGENT_SELF_PATCH` removed (code fixes are always an owner card with a diff). gork-lore keeps all lore but ships no contract addresses (owner-verified, kept in local config). All heuristics and checklists unchanged.
+- **League mode (`LEAGUE_MODE`, default off):** AudaceFi devnet league: devnet RPC + separate league wallet (boot refuses mainnet or the main wallet/key), degen allowlist only, buys only inside the season window, auto-flatten to USDC before each snapshot, execution only through a pluggable AudaceFi executor (never Jupiter). Config placeholders in `bots/.env.example`, no keys. `bots/league_mode.py`.
+- Tests: `bots/tests/test_agent_mode.py`, `bots/tests/test_league_mode.py`.
+
 ## v1.0.14 (2026-10-28): outside resources, numbers first
 - `skills/meme-hunter/SKILL.md`: new section "Deciding Whether To Buy (outside resources, numbers first)", matching Perps. Agents with web/X search may check DexScreener/Birdeye/Solscan, holders, LP, dev wallet, flows, X and news before a buy; raw numbers first, sources with age in the reason; never overrides hard gates, owner rules or caps. `skills/ca-intel/SKILL.md` references it.
 - Docs/skills only; no trading code or defaults changed. (v1.0.13 is reserved.)

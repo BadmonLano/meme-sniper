@@ -1014,10 +1014,16 @@
       "unit": "secret",
       "src": "env"
     },
-    "AGENT_SELF_PATCH": {
-      "label": "Agent Self-Patch",
+    "AGENT_MODE": {
+      "label": "Agent autonomy (suggest = waits for your OK; auto = trades on its own)",
       "section": "Modes",
-      "unit": "on/off",
+      "unit": "suggest/auto",
+      "src": "env"
+    },
+    "AGENT_MODE_APPROVAL_TTL_MIN": {
+      "label": "Trade suggestion expiry",
+      "section": "Modes",
+      "unit": "minutes",
       "src": "env"
     },
     "BRAND_CANON_HYSTERESIS": {
