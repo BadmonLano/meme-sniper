@@ -2,9 +2,9 @@
 
 # Meme Sniper
 
-**Solana meme sniper run by your SI agent: scans, rug-checks, buys and sells, plus a gated launch rail with GitHub repo attach. Live trading with safety caps, launch rail off by default. Python, MIT.**
+**Solana meme sniper: scans, rug-checks, and suggests buys and sells, plus a gated launch rail with GitHub repo attach. Paper and suggest mode are the defaults (a missing env var does not sign). Armed stops, the owner-position timeout, and the launch rail ship off until you opt in. Python, MIT.**
 
-Your agent's trench crew. Meme Sniper scans every new Solana memecoin, rug-checks it, buys, manages and sells, and can launch your own token through a gated launch rail with a real GitHub repo attached. An SI agent runs it for you; you set the wallet, sizes and rules once, and get pinged about what happens.
+Your agent's trench crew. Meme Sniper scans every new Solana memecoin and rug-checks it. Trade ideas are suggestions until you approve them. It can also launch your own token through a gated launch rail that ships off. You set the wallet, sizes and rules once, and get pinged about what happens.
 
 No hype, no ticker. Just the code.
 
@@ -15,7 +15,7 @@ No hype, no ticker. Just the code.
 Meme Sniper is a **loop meant to run continuously**: the bot runs 24/7 on its cadence and your agent runs the lanes in `automations/` on theirs. It is not a one-shot script.
 
 - **Keep it running:** use an always-on hosted agent (best), or auto-start on boot on your own PC: Windows Task Scheduler "At log on" running `python bots/sniper.py --start`, macOS a `launchd` agent, Linux a `systemd --user` service or `@reboot` cron. Have the agent's lane jobs saved as recurring automations so they survive restarts.
-- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps sells, stop-losses, armed SL/TP, the stuck-bag watchdog and monitoring running, and resumes on its own when the window opens. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
+- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps monitoring running, and resumes on its own when the window opens. A sell still needs your approval unless you set `ARMED_STOPS=1`. The stuck-bag watchdog only retries a sell that already went out. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
 - **Cadence (tunable):** lane cadences `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadences keep their existing settings (`AGENT_INBOX_CADENCE_S`, `SNIPER_LAUNCH_POLL_S`, `WALLET_POLL_INTERVAL_S`, `SNIPER_WATCH_INTERVAL_S`).
 - **Check it:** `python bots/active_hours.py` prints whether new entries are allowed right now and each lane's cadence (no secrets).
 - The setup wizard asks active hours right after the agent-autonomy question (`AGENT_MODE`).
@@ -33,7 +33,7 @@ Sniper can be run by Grok Bot, Muse, or an agent from any of the larger SI compa
 - [What Sniper is](#what-sniper-is)
 - [Read this first: safety defaults](#read-this-first-safety-defaults)
 - [Safety caps and your settings](#safety-caps-and-your-settings)
-- [Self-updates and fixes (policy)](#self-updates-and-fixes-policy)
+- [Fixes (policy)](#fixes-policy)
 - [GitHub basics (new to GitHub? start here)](#github-basics-new-to-github-start-here)
 - [What's in this folder](#whats-in-this-folder)
 - [Quick start](#quick-start)
