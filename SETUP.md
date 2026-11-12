@@ -195,7 +195,9 @@ Unset (or 0) means the engine behaves exactly as before. **Where they live:** ea
 
 ### 4.2 Paper mode
 
-`SNIPER_PAPER_MODE=1` (off by default; live stays the default). The owner turns it on explicitly: the wizard asks (default No), Settings, or `bots/.env`. It is read when the engine starts, so restart after switching.
+`SNIPER_PAPER_MODE` **ships on**. A missing or blank value is paper too. Live signing happens only when the value is explicitly `0`, `false`, `no`, or `off`. The wizard asks (paper preselected). It is read when the engine starts, so restart after switching.
+
+Armed stops (`ARMED_STOPS`, default `0`) and the owner-position timeout (`OWNER_POS_AUTO_TIMEOUT`, default `off`) also ship off. A breached stop, and a bag the bot did not buy, do not sell until you approve that action, unless you set those switches on. The launch rail ships off (`LAUNCH_RAIL_ENABLED=false`, `LAUNCH_RAIL_LIVE=0`).
 
 - The whole pipeline runs: feed, filters, rug checks, your decisions, armed exits.
 - Buys and sells are simulated at real Jupiter quotes, less `SNIPER_PAPER_SLIPPAGE_PCT` (default 1%) and the base + priority fee, against a paper wallet that starts at `SNIPER_PAPER_START_SOL` (default 1 SOL).
@@ -455,7 +457,7 @@ Before anything goes live, check:
 - the launch choice (`LAUNCH_RAIL_LIVE`) and `rules/rules.md` say what the owner wants about launches
 - your automations from section 11 exist and each has run once
 - every folder in section 3 exists
-- wallet (a burner), sizes and RPC are set; everything is live from the first start unless the owner chose paper mode (section 4.2)
+- sizes and RPC are set. Paper mode is the default, including when `SNIPER_PAPER_MODE` is missing (section 4.2). A burner wallet key is required only after the owner opts into live. Armed stops, the owner-position timeout, and the launch rail stay off until the owner turns them on.
 - buy size / default SL/TP / learning mode are what the owner wants (section 4.1)
 - each bot starts and writes one packet to `inbox/`
 - you pick that packet up and move it to `inbox_results/done/`

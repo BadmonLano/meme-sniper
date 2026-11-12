@@ -2,6 +2,16 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.17 (2026-11-12): safe defaults, no agent hijack, no unapproved exits
+
+Directory review follow-up. The bot's features and the MIT license are unchanged. What changed is the default and the instructions an agent is allowed to follow.
+
+- **Paper when the env var is missing.** `SNIPER_PAPER_MODE` unset, blank, or any value other than `0` / `false` / `no` / `off` does not sign. Live signing is an explicit opt-in. `bots/meme_sniper.py`, `bots/sub-bots/launch_rail.py`, the wizard, and the console use the same rule (`bots/safe_defaults.py`). `bots/.env.example` already shipped `SNIPER_PAPER_MODE=1`; the engine now matches it.
+- **Launch rail ships off**, and the docs now say so. `LAUNCH_RAIL_ENABLED` defaults false and `LAUNCH_RAIL_LIVE` defaults to `0`. Paper mode never sends. `SECURITY.md`, `README.md`, `SETUP.md`, and `docs/LAUNCH_RAIL.md` agree.
+- **No sell without a fresh approval unless you opt in.** `ARMED_STOPS` defaults off: a breached stop-loss, take-profit, or default flip stop is a `protective_exit_suggested` card, not a transaction. `OWNER_POS_AUTO_TIMEOUT` defaults off: the 30-minute owner-position window does not take over a bag and does not sell. Set each switch on only if you want that automatic exit. `AGENT_MODE` still defaults to `suggest`.
+- **Skills and automations are opt-in and consistent.** `meme-hunter`, `ca-intel`, and `code-monitor` no longer treat a base58 address as a trigger, no longer tell the agent to fire a live order, and no longer tell it to patch `bots/*.py`. One safety contract: suggestions for the owner, the owner applies source patches. The same rule is in the other skills, the lane prompts, and both plugin manifests.
+- Tests: `bots/tests/test_safe_defaults.py`, plus the armed-stop and owner-position tests updated for the new defaults.
+
 ## v1.0.16 (2026-10-29): always-on loop, active hours, tunable lane cadences
 - **The bot is a loop meant to run continuously.** New "Always on: loop, cadence and active hours" section at the top of README.md and SETUP.md, plus notes in `skills/meme-hunter/SKILL.md`, `automations/README.md` and each lane file: keep it on an always-on hosted agent or auto-start on boot, and keep the lanes as saved recurring automations.
 - **`ACTIVE_HOURS` (default `00:00-23:59` = always on), `ACTIVE_TZ` (`America/New_York`), `ACTIVE_DAYS` (blank = every day).** Outside the window the loop idles on new buys and new inbox cards (pre-buy gate, so never mid-order), keeps sells, SL/TP, the watchdog and monitoring running, and resumes on its own. Existing `TRADING_HOURS` / `TRADING_TZ` still apply on top. `bots/active_hours.py` (+ `python bots/active_hours.py` status, no secrets); wired into `sniper_guard.in_trading_window`.

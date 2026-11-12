@@ -130,7 +130,7 @@ Forensics-specific tier mapping:
 
 - Mark LEARNINGS entries as resolved/low or pending/high
 
-- Write HIGH-confidence zero-new-rug miss-analyst patches to owner_inbox as P3 patch packets (auto-promoted via code-monitor doctrine; the agent applies and the packet is the notice)
+- Write HIGH-confidence zero-new-rug miss-analyst patches to owner_inbox as proposals (a diff and a test plan). The owner applies them. Do not edit trading-engine source.
 
 - Classify miss-analyst recommendation type
 
@@ -1027,7 +1027,7 @@ Adjust `MIN_LIQUIDITY_REGULAR` in `bots/tuner/meme_sniper_filter.json` from 2000
 
 ## Test plan
 
-- the agent applies the patch (backup first, revert note logged)
+- the agent proposes the patch in owner_inbox (diff, test plan, revert note). The owner applies it.
 - meme_sniper restarts on its next cycle
 - Watch trades.log for first N trades under the new threshold
 - If 3+ rugs land in 7 days that wouldn't have landed under old threshold → revert

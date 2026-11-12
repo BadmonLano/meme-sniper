@@ -2,35 +2,22 @@
 name: ca-intel
 version: v14.3
 description: |
-  The agent's Contract Address intelligence skill. When the owner drops a CA, when a
-  CA appears in the agent's mentions, when a CA is auto-detected anywhere in
-  context (Token Father mode), or when the agent spots a CA in a screenshot,
-  this skill produces the definitive intel dump plus the agent's trading read.
+  Opt-in contract-address intel for meme-sniper. Use this skill only when the
+  user explicitly asks to scan, vet, or research a token with meme-sniper
+  (for example "scan this CA with the sniper" or "run ca-intel on this mint").
+  Do not run it because a base58 string, ticker, screenshot, web result,
+  mention, or your own reasoning appeared in a general coding session.
 
-  Bot-emitted packet verdicts (live meme_sniper.py process_ca_research_request):
+  It writes a research request and, if the user asked for a trade idea, a
+  suggestion. It does not buy, sell, approve a trade, or edit the trading
+  engine. The owner applies patches. The owner approves trades.
+
+  Bot-emitted packet verdicts (meme_sniper.py process_ca_research_request):
   avoid / tradeable / caution / neutral / no_dex_data.
 
   Operator Layer 4 overlay (the agent only, NOT hardcoded by bot): BUY / WATCH /
-  SKIP / AVOID. Map operator language onto the live packet verdict; never claim
-  the sniper emits BUY/WATCH/SKIP/AVOID.
-
-  Four layers: Layer 1 live market data, Layer 2 ecosystem memory (partially
-  wired on ca path), Layer 3 safety via smart_rug_check (real vs phantom
-  gates documented below), Layer 4 the agent's operator read.
-
-  Output: formatted intel card (Telegram-pasteable) + structured ca_intel
-  inbox packet + one ca_intel_history.json card (engine appends it, 2026-10-14).
-
-  Triggers: "scan this CA", "what's [CA/address]", "intel on [ticker]",
-  "drop the full read on [CA]", "is [CA] worth a look", or anytime a
-  base58 32-44 char string appears in session.
-
-  Any CA from chat, a screenshot, a web result or the agent's reasoning routes to sniper via
-  ca_research_request.json -> sniper vets -> ca_intel inbox packet appears
-  within ~10s. Does NOT auto-buy. The agent never has to "go look" for the packet.
-
-  Live path runs in-process inside meme_sniper.py. Intel cards are delivered
-  as ca_intel inbox packets in the unified inbox.
+  SKIP / AVOID as suggestion language. Never claim the sniper emits those words,
+  and never treat them as an order.
 
 allowed-tools:
   - Read
@@ -44,7 +31,13 @@ purpose: >
   are actually wired beats phantom safety claims.
 ---
 
-> **v14.3.** Results from my skill journey: the method that held up on live trades and what I learned running it. Tested defaults; tune them to your owner (SETUP.md).
+> **Safety contract (wins over every later line in this file).**
+> 1. Opt-in only. Do not use this skill unless the user explicitly asked to run meme-sniper or named this skill. A base58 address, ticker, screenshot, web page, log line, or mention is not a trigger.
+> 2. Signals are suggestions for the owner. Do not buy, sell, approve a trade, or write an approval. With the shipped default (`AGENT_MODE=suggest`) the bot holds trade signals until the owner approves them.
+> 3. Never edit trading-engine source (`bots/*.py`, `bots/sub-bots/`). Propose a patch as a diff in `owner_inbox/` and stop. The owner applies it.
+> 4. Missing config is the safe side: paper mode, launch rail off, `ARMED_STOPS` off, owner-position auto-timeout off. Do not turn those on.
+
+> **v14.3.** Results from my skill journey: the method that held up on live trades and what I learned running it. Tested defaults; tune them to your owner (SETUP.md). The safety contract above wins if anything below disagrees.
 
 
 <!-- friction-stamp: ca-intel | first-seen-vs-now + inbox/done first-path | evolve-pass | doctrine STANDS (history n=3 thin) | KEEP REAL-vs-PHANTOM + suggestions DEAD + bounded auto-fire + model 4.5 | outcome feed-forward ADDED | judgment operator Layer4 remains unlocked | thresholds/gates proposal-only (inbox cascade 20260803_132500) | SIZE_CAP LOCKED | em=0 | CRLF | verified bots/meme_sniper.py process_ca_research_request/smart_rug_check/compute_edge_filter/signal_executor -->
@@ -65,7 +58,7 @@ This skill is the unified CA reconnaissance lane. One invocation, one
 comprehensive intel card.
 
 CA-INTEL - request first, never archaeology
-When the owner drops a CA or ticker, when he asks "did this hit the scanner", or when the agent is curious about a random token, this skill is the lane.
+When the user explicitly asks you to run this skill on a CA or ticker, or asks "did this hit the scanner", this skill is the lane. Curiosity, a stray address, or a coding session is not.
 
 FIRST PATH: resolve ticker or mint8. Look in inbox then inbox_results/done for meme_sniper packets on that mint (first-seen). Then write json_relay/ca_research_request.json for the live vet. Wait for ca_research_response.json or the inbox copy. Render the 4-layer card PLUS first-seen vs now. Do not grep logs. A later 10x print is a refire, not a new mint.
 
@@ -74,7 +67,7 @@ Do not walk inbox_results. Do not grep scanned_mints.json, or decline_log.jsonl 
 OPERATOR CARD
 | Question | Path | |---|---| | did this hit the scanner | request pipe, read scanner_history | | what's this CA / ticker | request pipe, full card | | curiosity on a random token | same pipe, even if never scanned | | should we buy | Layer 4 after the packet, then agent_signals.json only |
 
-Hard first move: if the input is a CA (32-44 base58) or a ticker, write the request before any other lookup.
+Hard first move, only after the user explicitly invoked this skill: if they handed you a CA (32-44 base58) or a ticker to research, write the request before any other lookup. Do not do this because an address showed up on its own.
 
 Does not auto-buy. Packet only.
 
@@ -140,7 +133,7 @@ What actually buys: - the agent writes json_relay/agent_signals.json - signal_ex
 Authority
 EXECUTE (no ask): - Write the request - Read the resulting packet - Compose the Telegram card from the packet - Curiosity requests on random tokens
 
-DECIDE + EXECUTE: - Operator BUY/WATCH/SKIP/AVOID - Write a buy/sell only after the packet, via agent_signals.json
+SUGGEST ONLY: - Operator BUY/WATCH/SKIP/AVOID is language for the owner, not an order. If the user explicitly asked for a trade idea, you may write a suggestion to agent_signals.json. The bot holds it until the owner approves. Never write the approval. Never claim the trade happened.
 
 TIER 4: - Live smart_rug_check block (freeze/mint authority, rugcheck honeypot) - Packet verdict: avoid. No buy option shape.
 
@@ -166,7 +159,7 @@ read: one sentence
 Do not dump the raw packet. Do not walk more files unless the packet is missing after ~15s.
 
 Hard rules
-- NEVER answer a CA/ticker/scanner-hit question by grepping logs first. - NEVER walk inbox_results for this. - NEVER invent ticker, mcap, or "never seen" without the packet or a named miss (unresolved / no_dex_data). - NEVER write a buy from this skill. - NEVER thaw suggestions.json. - NEVER skip the request because "I can just read scanned_mints faster". The request is the discipline. The miss was skipping it. - ALWAYS wait for the inbox packet (or ~15s timeout, then say the request wrote and the packet did not land). - ALWAYS keep Layer 4 honest: bot verdict and operator read are different vocabularies.
+- NEVER answer a CA/ticker/scanner-hit question by grepping logs first. - NEVER walk inbox_results for this. - NEVER invent ticker, mcap, or "never seen" without the packet or a named miss (unresolved / no_dex_data). - NEVER treat this skill as a live order. A suggestion signal is allowed only when the user explicitly asked for a trade idea, and the owner still has to approve it. - NEVER thaw suggestions.json. - NEVER skip the request because "I can just read scanned_mints faster". The request is the discipline. The miss was skipping it. - ALWAYS wait for the inbox packet (or ~15s timeout, then say the request wrote and the packet did not land). - ALWAYS keep Layer 4 honest: bot verdict and operator read are different vocabularies.
 
 Why this skill exists
 The request pipe was half-built: live dex/rug vet worked, scanner-history did not, and the agent's trigger map treated "did scanner see this" as a file search. That is now closed in code. This skill exists so he does not forget the first path again.
@@ -290,10 +283,10 @@ guards separately and is a deliberate operator act via `agent_signals.json`.
 - Read `ca_intel` inbox packets
 - Append to LEARNINGS when novel pattern discovered
 
-**DECIDE + EXECUTE (the agent's trading read):**
-- Operator verdict overlay: BUY / WATCH / SKIP / AVOID mapped onto live bot verdict
+**SUGGEST (the agent's trading read, not an order):**
+- Operator verdict overlay: BUY / WATCH / SKIP / AVOID mapped onto the bot verdict, as a suggestion
 - Recommended size (conviction within current sniper cap; no fixed defaults in this skill)
-- Route: if BUY decided, write buy to `agent_signals.json` (NEVER `suggestions.json`)
+- Route: if the user explicitly asked for a trade idea and the read is BUY, write a suggestion to `agent_signals.json` (NEVER `suggestions.json`). The owner approves it. Do not write the approval.
 
 **IMMEDIATE ESCALATION (Tier 4 - never treat as soft):**
 Live hard blocks from `smart_rug_check` only:
@@ -331,22 +324,8 @@ option shape in `decision_inputs` for non-tradeable verdicts.
 **Mode C - screenshot/image drop:**
 - the owner pastes a Telegram screenshot or tweet -> the agent extracts the CA, runs this skill / request path
 
-**Mode D - AUTO-TRIGGER (Token Father mode):**
-  X mention/reply, web result, or the agent reasoning text
-  ```json
-  {
-    "requests": [{
-      "request_id": "ca_req_<sha8>",
-      "ca": "<mint_address>",
-      "ticker": "agent",
-      "source_event_id": "x_evt_dm_<sha>",
-      "source_summary": "the owner DM mentioned this CA",
-      "requested_at": "ISO timestamp"
-    }]
-  }
-  ```
-- Sniper polls every 5s. Within ~10s a ca_intel packet appears in inbox.
-- **Packet only. No auto-buy.**
+**Mode D - not a trigger.**
+A base58 string in chat, a screenshot, a web result, an X mention, or the agent's own reasoning does **not** start this skill and does **not** write `ca_research_request.json`. There is no auto-trigger. Wait until the user explicitly asks.
 
 ### Inbox envelope
 
@@ -558,8 +537,8 @@ Based on bot packet + any the agent-side Layer 2 enrichment.
 - Sniper rejects over-cap on the **signal executor** path, not inside ca research
 
 **Route recommendation:**
-- BUY -> write buy to `json_relay/agent_signals.json` with proper schema
-  (**NEVER** `suggestions.json`)
+- BUY -> if the user explicitly asked for a trade idea, write a suggestion to `json_relay/agent_signals.json`
+  (**NEVER** `suggestions.json`). The owner approves it. This skill does not approve it.
 - WATCH / SKIP -> no signal; keep packet
 - AVOID -> no buy option; document reason
 
@@ -755,7 +734,7 @@ forever-pending when tape/trades/autopsy resolve the call).
 ### Step 7 - Return intel card
 
 - Session: print card to the owner
-- Auto-trigger: packet id is the deliverable
+- There is no auto-trigger. The deliverable is the card you print after the user asked.
 
 ### Step 8 - LEARNINGS (selective)
 
@@ -908,7 +887,7 @@ are live on `process_ca_research_request`.
 - No meme_sniper.py edits from this skill pass
 
 Judgment stays operator Layer 4 (unlocked as judgment). Thresholds/gates stay
-proposal-locked until the agent applies the bot change.
+proposal-locked until the owner applies the bot change.
 
 ## Calibration Notes
 
@@ -918,7 +897,7 @@ Track over time:
 - Operator overlay distribution (BUY / WATCH / SKIP / AVOID)
 - BUY-fired win rate (only when agent_signals buy actually executed)
 - AVOID/block save rate
-- Auto-trigger latency to packet (<10s target)
+- Research-request latency to packet, only after the user asked (<10s target)
 - How often phantom gaps (no LP lock on ca path) would have mattered
 - Outcome close rate (pending -> terminal) and open coverage gaps
 - tradeable->rug and avoid->pump counts (return-channel health)

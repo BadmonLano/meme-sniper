@@ -290,9 +290,14 @@ def selected_providers(env: dict) -> list:
 
 
 def _paper(env: dict) -> bool:
-    """Paper unless SNIPER_PAPER_MODE is explicitly off (new setups default to paper)."""
-    v = str((env or {}).get("SNIPER_PAPER_MODE", "") or "").strip()
-    return _on(v) if v else True
+    """Paper unless SNIPER_PAPER_MODE is explicitly off (0/false/no/off). Missing stays paper."""
+    try:
+        from safe_defaults import paper_mode
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(BOTS))
+        from safe_defaults import paper_mode
+    return paper_mode(env)
 
 
 def _required(env: dict) -> tuple:
@@ -1556,7 +1561,7 @@ def _hb_color(status: str, stamp) -> str:
 
 
 def dashboard_view(env: dict) -> Group:
-    paper = _on((env or {}).get("SNIPER_PAPER_MODE"))
+    paper = _paper(env or {})
     logs = BOT_LOGS / "paper" if paper else BOT_LOGS
     positions = _read_json(logs / "positions.json", {}) or {}
     positions = positions if isinstance(positions, dict) else {}

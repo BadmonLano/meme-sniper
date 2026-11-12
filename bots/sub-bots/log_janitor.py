@@ -1222,7 +1222,7 @@ def _lu_on_boot():
 async def live_update_watcher_loop():
     """Reload when this file changes on disk, only past min-uptime, with NO janitor pass in flight,
     and only once the on-disk source compiles (guards the mid-write race).
-    The agent handles his own patches. This reload is not the owner applying a patch."""
+    The owner applies patches. This reload only picks up a file the owner already saved."""
     log(f"[live_update] watcher online (boot {_LU_BOOT_HASH})")
     while True:
         try:

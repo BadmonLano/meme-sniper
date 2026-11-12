@@ -4,14 +4,16 @@ launch_rail.py: the Sniper launch rail (Pump.fun via PumpPortal).
 
 When an agent ships something real and useful, the rail checks the repo, uploads metadata
 that links the repo, builds the pump.fun create transaction (PumpPortal local API),
-signs it with the mint keypair and the creator wallet, and sends it when the setup config arms live mode.
-The agent decides each launch; there is no human confirm step.
+signs it with the mint keypair and the creator wallet, and sends it only when the owner
+has explicitly armed live mode. The shipped default is off.
 
 SAFETY
-  * Ships off-chain: LAUNCH_RAIL_LIVE defaults to 0 (dry runs only). Set LAUNCH_RAIL_LIVE=1 to go live.
-  * Live is setup config, not an approval: LAUNCH_RAIL_ENABLED on (env or launch_rail_config.json)
-    + env LAUNCH_RAIL_LIVE=1, and dev buy <= the cap (LAUNCH_MAX_DEV_BUY_SOL, default 0.5). Then every agent request
-    sends live unless it asks for --dry-run / "dry_run": true. --confirm is accepted and ignored.
+  * Ships off: LAUNCH_RAIL_ENABLED defaults false and LAUNCH_RAIL_LIVE defaults to 0 (dry runs only).
+  * Live is an explicit opt-in: LAUNCH_RAIL_ENABLED on (env or launch_rail_config.json)
+    AND env LAUNCH_RAIL_LIVE=1, and dev buy <= the cap (LAUNCH_MAX_DEV_BUY_SOL, default 0.5).
+    Missing SNIPER_PAPER_MODE is paper, and paper mode never sends.
+    With both live switches on, an accepted request sends unless it sets dry_run.
+    --confirm is accepted and ignored, so leave both switches off unless that is what you want.
   * Secrets are read by NAME from env and never printed.
   * Every attempt is appended to bot_logs/launch_rail_log.jsonl.
 
@@ -148,13 +150,17 @@ def _now() -> str:
 
 
 def _paper_mode() -> bool:
-    """SNIPER_PAPER_MODE=1: every launch is a dry run and send() refuses."""
-    return (os.getenv("SNIPER_PAPER_MODE") or "0").strip().lower() in ("1", "true", "yes", "on")
+    """Missing or blank SNIPER_PAPER_MODE is paper. Live only when explicitly off.
+    Paper mode: every launch is a dry run and send() refuses."""
+    if WS_BOTS not in sys.path:
+        sys.path.insert(0, WS_BOTS)
+    from safe_defaults import paper_mode
+    return paper_mode()
 
 
 def _rail_live_env() -> bool:
     """LAUNCH_RAIL_LIVE ships off: unset counts as 0 (simulate only). Set LAUNCH_RAIL_LIVE=1 to go live.
-    Paper mode (SNIPER_PAPER_MODE=1) always simulates."""
+    Paper mode (the default when SNIPER_PAPER_MODE is missing) always simulates."""
     if _paper_mode():
         return False
     return (os.getenv("LAUNCH_RAIL_LIVE") or "0").strip() == "1"
@@ -665,7 +671,8 @@ def _dev_buy_cap(cli: Optional[float], cfg: dict) -> float:
 
 def launch(req: dict, *, no_upload=False, ipfs="pinata", throwaway=False, keyfile=None, force=False,
            confirm=True, max_dev_buy: Optional[float] = None, no_build=False, dry_run=False) -> dict:
-    # `confirm` is kept for old callers and ignored: the agent is the decider. Only dry_run or
+    # `confirm` is kept for old callers and ignored. Live still requires the owner's
+    # switches (LAUNCH_RAIL_ENABLED and LAUNCH_RAIL_LIVE). Only dry_run or
     # the setup config (LAUNCH_RAIL_ENABLED + LAUNCH_RAIL_LIVE) keep a request off-chain.
     cfg = load_config()
     validate_request(req)

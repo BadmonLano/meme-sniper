@@ -5,7 +5,7 @@ The skills are the agent's playbook. The bots produce data and packets; the skil
 ## Load order
 
 1. **`meme-hunter`** (core, always loaded): trading doctrine for meme_sniper (buy/pass, sizing, SL/TP, flip vs hold, the Gork Standard for holds, launches, owner review cards). Very long; load it in parts (below).
-2. **`ca-intel`**: whenever a contract address shows up (owner drop, screenshot, chat, web). Produces the intel card and routes the CA to the sniper for vetting.
+2. **`ca-intel`**: only when the user explicitly asks for a contract-address read with the sniper. A base58 string, screenshot, or web page is not a trigger. Produces an intel card. Trade ideas are suggestions; the skill does not buy.
 3. **`forensics`**: after closes and on weekly reviews. Autopsies of closed trades and missed runners; writes proposals, never edits live filters.
 4. **Sub-skills**, loaded when their packets or tasks come up:
 

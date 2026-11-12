@@ -2527,15 +2527,28 @@ def _ui_on(v) -> bool:
 
 
 def _ui_paper_on() -> bool:
+    """Missing SNIPER_PAPER_MODE is paper. Explicit 0/false/no/off is live."""
     try:
-        return any(k == "SNIPER_PAPER_MODE" and _ui_on(v) for k, v, *_ in _ui_env_entries())
+        for k, v, *_ in _ui_env_entries():
+            if k != "SNIPER_PAPER_MODE":
+                continue
+            s = str(v or "").strip().lower()
+            if not s:
+                return True
+            if s in ("0", "false", "no", "off"):
+                return False
+            return True
+        return True
     except Exception:
-        return False
+        return True
 
 
 def _ui_paper_switch_ok(old, new, typed: str = "") -> bool:
-    """Paper -> live needs the word LIVE typed; every other change is a normal confirm."""
-    if _ui_on(old) and not _ui_on(new):
+    """Paper -> live needs the word LIVE typed; every other change is a normal confirm.
+    A blank old value is paper (the shipped default)."""
+    old_s = str(old or "").strip().lower()
+    old_paper = (not old_s) or old_s not in ("0", "false", "no", "off")
+    if old_paper and not _ui_on(new) and str(new or "").strip().lower() in ("0", "false", "no", "off"):
         return str(typed).strip() == "LIVE"
     return True
 
@@ -2933,7 +2946,9 @@ def _ui_tunables(con) -> None:
                 continue
         if r["key"] == "SNIPER_PAPER_MODE":
             typed = ""
-            if _ui_on(fresh["value"]) and not _ui_on(val):
+            _old_s = str(fresh["value"] or "").strip().lower()
+            _old_paper = (not _old_s) or _old_s not in ("0", "false", "no", "off")
+            if _old_paper and not _ui_on(val):
                 con.print("[bold red]Leaving PAPER mode: after the restart the bot trades REAL funds.[/]")
                 typed = Prompt.ask("Type LIVE to confirm", default="", show_default=False, console=con)
             if not _ui_paper_switch_ok(fresh["value"], val, typed):

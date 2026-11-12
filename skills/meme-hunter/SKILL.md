@@ -1,12 +1,18 @@
 ---
 name: meme-hunter
-description: Solana meme flip + hold playbook for meme_sniper. Every open bag carries an agent-set SL/TP, one set_protection_batch pass per inbox check. The Current ruleset up top wins on conflict; core rules (meme_exit_edge_v1, reverse_size_kill_v1, dual-gate + projection map, sensor law, prove-it lock), the Layoo ratchet manage loop and the Gork Standard hold score; exits graded on the autopsy scoreboard, not single-coin stories.
+description: Opt-in Solana meme flip and hold playbook for meme-sniper. Use only when the user explicitly asks to run meme-sniper or this skill. Do not use it because a base58 address, ticker, or file appeared. Signals are suggestions for the owner. Never edit the trading engine; the owner applies patches. The Current ruleset and the safety contract at the top win on conflict.
 version: v14.3
 purpose: >
   Maximum capital compounding via meme-coin asymmetric upside. The wallet-floor + size-cap + concentration logic IS the safety net; the agent ships within those gates. Every trade decision is a brick in the next the agent-local fine-tune, the brutal-honesty discipline isn't optional, it's the reason the next generation reasons better than the current one.
 ---
 
-> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode.
+> **Safety contract (wins over every later line in this file).**
+> 1. Opt-in only. Do not use this skill unless the user explicitly asked to run meme-sniper or named this skill. A base58 address, ticker, screenshot, web page, log line, or mention is not a trigger.
+> 2. Signals are suggestions for the owner. Do not buy, sell, approve a trade, or write an approval. With the shipped default (`AGENT_MODE=suggest`) the bot holds trade signals until the owner approves them.
+> 3. Never edit trading-engine source (`bots/*.py`, `bots/sub-bots/`). Propose a patch as a diff in `owner_inbox/` and stop. The owner applies it.
+> 4. Missing config is the safe side: paper mode, launch rail off, `ARMED_STOPS` off, owner-position auto-timeout off. Do not turn those on.
+
+> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode. The safety contract above wins if anything below disagrees.
 
 **Purpose:** Maximum capital compounding via meme-coin asymmetric upside. The wallet-floor + size-cap + concentration logic IS the safety net; the agent ships within those gates. Every trade decision is a brick in the next the agent-local fine-tune, the brutal-honesty discipline isn't optional, it's the reason the next generation reasons better than the current one.
 
@@ -40,7 +46,7 @@ purpose: >
 
 ## Always on: cadence and active hours
 
-Meme Sniper is a loop meant to run continuously: keep your lane automations saved and recurring (always-on hosted agent, or auto-start on boot), at the cadences in `bots/.env` (`LANE_CADENCE_*`, `LANE_MORNING_BRIEF_AT`, `LANE_NIGHTLY_EVAL_AT`; `python bots/active_hours.py` prints them). Outside `ACTIVE_HOURS` / `ACTIVE_DAYS` (`ACTIVE_TZ`) keep running every lane and keep protecting open positions (set_protection, sells), but send no new buys; the bot declines them (`outside_trading_hours`, reason names `ACTIVE_HOURS`) and resumes on its own. Never change `ACTIVE_HOURS` yourself.
+Meme Sniper is a loop meant to run continuously: keep your lane automations saved and recurring (always-on hosted agent, or auto-start on boot), at the cadences in `bots/.env` (`LANE_CADENCE_*`, `LANE_MORNING_BRIEF_AT`, `LANE_NIGHTLY_EVAL_AT`; `python bots/active_hours.py` prints them). Outside `ACTIVE_HOURS` / `ACTIVE_DAYS` (`ACTIVE_TZ`) keep running every lane the user scheduled and keep monitoring open positions (suggest `set_protection` changes). Do not send a sell unless the owner approved it, or the owner set `ARMED_STOPS=1`. Send no new buys; the bot declines them (`outside_trading_hours`, reason names `ACTIVE_HOURS`) and resumes on its own. Never change `ACTIVE_HOURS` yourself.
 
 ## Owner rules come first
 
@@ -73,14 +79,14 @@ Do this once, with the owner, before the first live trade. Nothing gets decided 
 
 Before the first trade, ask your owner and write the answers to `bots/.env` (blank = default). Ask first: agent mode (`AGENT_MODE`: `suggest` = you propose and wait for the owner's OK, the default; `auto` = you trade on your own inside the caps, warn the owner before they pick it), then active hours (`ACTIVE_HOURS`, default `00:00-23:59` = always on, + `ACTIVE_TZ`; the loop runs 24/7 either way, the window only gates new buys), then paper or live (default paper; live needs the wallet key and the owner typing LIVE). Then: launch rail on/off (default off), buy size, `DAILY_LOSS_STOP_SOL` (0.5), `DAILY_BUY_CAP` (10), stop loss / trailing stop, `MINT_COOLDOWN_HOURS` (72), `LOSS_STREAK_PAUSE` (3 losses, 2h), `MAX_OPEN_POSITIONS` (3), `TRADING_HOURS` + `TRADING_TZ`. Second-wind pings carry a `plan` (entry zone, stop under base low, target old peak); they are watch-only.
 
-## Self-update policy
+## Fixes policy
 
 You (the agent) follow these:
 
-- **Your agent may fix or upgrade its own local copy** when it spots a bug or a better way. Before it changes anything it must: (1) back up the file it is about to edit, (2) test the change in paper mode (`SNIPER_PAPER_MODE=1`) first, and (3) tell you, its owner, what changed and why.
-- **Fixes for everyone go back as suggestions, not pushes.** If the fix would help other users, the agent sends it to the upstream repo as a suggestion through the review queue (`bots/sniper_github.py`). The maintainer's agent reviews it. Nothing is ever auto-merged.
-- **Your copy never auto-pulls.** Upstream changes only reach your copy when you choose to update.
-- **Safety caps only loosen with your OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate can be tightened by the agent at any time, but loosened or switched off only after you say yes.
+- **Propose patches. Do not apply them.** When you spot a bug, write an owner card in `owner_inbox/` with the evidence, a diff, and a test plan. The owner applies it. Do not edit `bots/`.
+- **Fixes for everyone go back as suggestions, not pushes.** If the fix would help other users, send it to the upstream repo as a suggestion through the review queue (`bots/sniper_github.py`). Nothing is ever auto-merged.
+- **Your copy never auto-pulls.** Upstream changes only reach your copy when the owner chooses to update.
+- **Safety caps do not move without the owner's OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate are not tightened, loosened, or switched off by the agent.
 
 ## Current ruleset
 
@@ -88,7 +94,7 @@ Everything after this section is reference detail. Where anything below disagree
 
 
 **Bot facts (code wins for facts, skill wins for decisions):**
-- `meme_sniper.py`, trades live (simulated against a paper wallet when `SNIPER_PAPER_MODE=1`; the boot line says which). No auto-buy, no bot-decided sell. Sniper buys only on your `agent_signals.json` write; exits come to you as `meme_exit_signal`. The ONE thing that sells without a fresh write is a stop or take-profit YOU armed (below).
+- `meme_sniper.py` is paper unless `SNIPER_PAPER_MODE` is explicitly off (`0` / `false` / `no` / `off`). A missing value does not sign. No auto-buy. A buy or sell signal is a suggestion until the owner approves it (`AGENT_MODE=suggest`, the default). A stop or take-profit sells on its own only when `ARMED_STOPS=1` (default off); otherwise a breach is a suggestion. The launch rail ships off.
 
 **Protective orders:**
 - Every open bag carries a stop-loss and take-profit you set. Levels persist until you change them.
@@ -143,7 +149,7 @@ Idle is not an answer to a broken thing. Every inbox pass, right after `bot_logs
    - `bot_logs/alerts.log`: any `failed` row.
    - Wrong values on cards: a zone above the peak, mcap 0 on a live pair, two fields on one card that contradict, a label that flips between rebuilds of the same card.
 2. **Triage**: clear bug (cause found in the code, fix small and local) vs unclear (cause not proven, or the fix touches money, sizing, caps or secrets).
-3. **Clear bug -> owner card.** Do NOT apply it yourself. Write an owner card in `owner_inbox/` with the evidence, the proposed patch as a diff, and the test you ran on a temp copy. Recommend the owner apply it with the safe method - backup copy of the file (`<file>.bak_<ts>`), patch a temp copy, compile and test it, apply, check the file hash equals the tested copy, confirm in the log that the error stopped - then note it in `owner_inbox/` (what, why, backup, hash, rollback) plus one line in `learnings/LEARNINGS.md`.
+3. **Clear bug -> owner card.** Do not apply it. Write an owner card in `owner_inbox/` with the evidence, the proposed patch as a diff, and the test plan. The owner applies it (backup, test on a copy, then replace). Note the result in `learnings/LEARNINGS.md` after the owner confirms. Do not edit `bots/` yourself.
 4. **Unclear -> owner card** in `owner_inbox/`: the evidence (log lines, counts, times), your best read of the cause, the proposed patch as a diff, the risk.
 5. **Never** in this duty: restart or re-exec a bot (hot-reload only), touch `.env` values, keys or secrets, change buy size, caps, floors or the global SL/TP/trail defaults, or launch anything.
 
@@ -191,7 +197,7 @@ Read this first on every meme session. Do not collapse statuses.
 
 | Surface | Status | Truth |
 |---|---|---|
-| meme_sniper.py bot | **LIVE** | Jupiter + Helius real txs; auto-buy DEAD by default |
+| meme_sniper.py bot | **PAPER unless explicitly live** | Missing `SNIPER_PAPER_MODE` does not sign; auto-buy is off; sells need a fresh owner approval unless `ARMED_STOPS=1` |
 | Filter file SoT | **LIVE** 69 knobs | `bots/tuner/meme_sniper_filter.json` (file values win when config-read works) |
 | Code `DEFAULT_*` trail/hold constants | **LIVE module defaults** | trail drop **12** / activate **20** / max_hold **240m** / breakeven **20m** |
 | Filter file current values | **SYNCED** | trail drop **12** / activate **20** / max_hold **240** / breakeven **20**, same as code defaults |
@@ -1007,7 +1013,7 @@ When a `tune_packet` arrives (from owner or internal quality monitor):
 - Identify the over-strict gate (bundle score, min_age, liq_floor, x_organic_min, etc.).
 - Propose the exact threshold change or weighting adjustment.
 - Write the proposal to owner_inbox with before/after expected impact on buy rate and runner capture.
-- Apply it yourself once the evidence holds; log it and owner-ping (notify-only).
+- Stop there. The owner applies the change. Log the proposal and owner-ping (notify-only). Do not edit source.
 
 This section exists so every tune request gets the same disciplined process instead of ad-hoc changes.
 
@@ -2318,7 +2324,7 @@ If a directive targets one of these, the bot writes a meeting response inbox pac
 
 - `hard_locked` → returns status=`failed`. The categories above (credentials, safety floors, paths, fees, RPC) hit this. These will NEVER become tunable. Don't argue with the classifier here, it's enforcing rules.md doctrine.
 
-- `capability_gap` -> directive is sensible but no supporting tunable exists yet. **: bot does NOT auto-route to code_tuner anymore.** Instead, bot writes a `capability_gap` inbox packet via `write_inbox_packet_generic` as `meme_sniper - capability_gap_<idhash>_<ts>.json` with full directive context, classifier reasoning, proposed tunable shape, and risk assessment. **You (the agent) then author a patch packet via code-monitor doctrine and apply it (backup, test plan, revert note), with a notify-only note in owner_inbox.** The backup + revert note is the safety property.
+- `capability_gap` -> directive is sensible but no supporting tunable exists yet. The bot writes a `capability_gap` inbox packet. **Propose a patch as a diff in `owner_inbox/`.** The owner applies it. Do not edit `bots/` yourself.
 
 - `ambiguous` → classifier couldn't decide. Returns status=`failed` with reasoning, surfaces to the owner for manual call.
 
@@ -2377,7 +2383,7 @@ Overrides are runtime-only. Snapshot saved to bot_logs\sniper_overrides_snapshot
 
 - **`failed`**: directive targeted truly hard-locked param (credentials, safety floors, paths, fees, RPC), OR bounds violation, OR all 3 LLM tiers unavailable, OR gap classifier returned `ambiguous`. Response has `error` field. Fix and resubmit, or escalate to the owner if ambiguous.
 
-- **`capability_gap`**: directive proposed a param that doesn't exist BUT the bot's classifier identified it as a real capability gap (not hard-locked). Response packet has classification reasoning, proposed tunable shape, and risk notes. **: YOU author the patch.** Read the proposed shape, validate the risk classification (LOW/MEDIUM/HIGH per code-monitor doctrine), draft the patch packet, write it to `owner_inbox\agent - patch_meme_sniper_<ts>.md`. Apply it yourself (backup first); the owner_inbox file is the notice. Wait for the bot reboot + `patch_landed_ack` packet, then re-fire the original directive against the new tunable.
+- **`capability_gap`**: directive proposed a param that doesn't exist BUT the bot's classifier identified it as a real capability gap (not hard-locked). Response packet has classification reasoning, proposed tunable shape, and risk notes. Read the proposed shape, validate the risk classification (LOW/MEDIUM/HIGH per code-monitor doctrine), and write the diff to `owner_inbox/agent - patch_meme_sniper_<ts>.md`. The owner applies it. Do not edit source. After the owner reboots and a `patch_landed_ack` packet lands, the original directive can be tried against the new tunable.
 
 ### meeting brain (matches code)
 
@@ -2708,7 +2714,7 @@ If you ever see a recommendation field reappear in a packet, that is the bug ret
 
 ### The monitor NEVER sells. Not once. Not even on SL.
 
-Worth stating flat because it is the whole doctrine: **there is no path in this bot where a TP, SL, trail, time-decay, or velocity trigger sells anything.** Every trigger writes a `meme_exit_signal` packet and stops. The only things that ever submit a sell are (1) a `sell` / `panic_sell` signal **you** fire, and (2) the stuck-bag watchdog, which only ever *retries an exit you already ordered*. If you want out, or want to trim, you fire the `%` you want. The sensor tells you the number crossed a line; you decide what that's worth.
+Worth stating flat because it is the whole doctrine: a velocity, trail, time-decay, or tp-tier sensor does not sell. It writes a packet. A sell signal you write is a suggestion until the owner approves it. A breached SL/TP sells on its own only when the owner set `ARMED_STOPS=1` (default off); otherwise that breach is a suggestion too. The stuck-bag watchdog only retries a sell that already went out.
 
 ### Tiered profit alerts - `partial_tp`
 
@@ -3221,7 +3227,7 @@ Comments above are notes only; write plain JSON. Unknown fields or wrong types a
 
 You can override any level with a normal `set_protection` signal on the mint. Every own-launch action is logged to `bot_logs/own_launch_actions.jsonl`.
 
-**Launch requests are consumed by meme_sniper (2026-10-20).** No separate rail process: meme_sniper's `sniper_launch` loop checks `json_relay/launch_requests/*.json` and `bot_logs/launch_requests/*.json` every `SNIPER_LAUNCH_POLL_S` (default 30s). Only a request with `"confirm": true` AND `"dry_run": false` is sent to the rail (`launch_rail.py launch --request <file> --confirm`, LAUNCH_RAIL_LIVE=1 in the child env only). The rail's own gates still apply: LAUNCH_RAIL_ENABLED, the repo gate and the dev-buy cap (`LAUNCH_MAX_DEV_BUY_SOL`, default 0.5). Before the rail runs, the request id is written to `bot_logs/sniper_launch_seen.json` and the file is moved to `processed/`, so a request never fires twice. A failure is logged once and never retried. Unarmed requests stay in place and are logged once as `launch_request_not_armed`. Results go to `launch_results.json` and `bot_logs/own_launch_actions.jsonl`.
+**Launch requests are consumed by meme_sniper (2026-10-20).** No separate rail process: meme_sniper's `sniper_launch` loop checks `json_relay/launch_requests/*.json` and `bot_logs/launch_requests/*.json` every `SNIPER_LAUNCH_POLL_S` (default 30s). Only a request with `"confirm": true` AND `"dry_run": false` is handed to the rail. The child does **not** turn `LAUNCH_RAIL_LIVE` on. A real send still needs the owner to have set `LAUNCH_RAIL_ENABLED` and `LAUNCH_RAIL_LIVE=1`, and paper mode explicitly off. The repo gate and the dev-buy cap (`LAUNCH_MAX_DEV_BUY_SOL`, default 0.5) still apply. Before the rail runs, the request id is written to `bot_logs/sniper_launch_seen.json` and the file is moved to `processed/`, so a request never fires twice. A failure is logged once and never retried. Unarmed requests stay where they are and are logged once as `launch_request_not_armed`. Results go to `launch_results.json` and `bot_logs/own_launch_actions.jsonl`.
 
 **Inbox notes (one JSON file per event, `botname - subject_ts.json`):**
 - `meme_sniper - own_launch_<TICKER>_<mint8>_<ts>.json`, `_type: own_launch`. Written by the rail's `agent_inbox` hook (`bot_logs/launch_rail_config.json` → `"hooks": {"agent_inbox": true}`) after a LIVE send. Fields: mint, ticker, name, dev_buy_sol, dev_buy_tokens (tokens received; the dev buy is the holding), wallet (public address only), signature, pump_url, solscan, repo_url, website, twitter, telegram, ask. Never the mint key file, simulation data or secrets.

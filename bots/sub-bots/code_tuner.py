@@ -831,7 +831,7 @@ def snapshot_all_associated_skills(registry: dict) -> dict[str, dict]:
 # ════════════════════════════════════════════════════════════════════════════
 #                            CODE_REQUESTS - UNFINISHED PATCH RETURN
 # ============================================================================
-# The agent authors and applies his own patches. code_tuner does not edit other
+# The agent proposes patches. The owner applies them. code_tuner does not edit other
 # bots' .py and does not auto-deploy.
 #
 # If a request cannot be finished by this bot, write it back to the agent's
@@ -866,7 +866,7 @@ def return_unfinished_code_request(request: dict) -> str:
     """
     A request this bot cannot finish. It still does not edit other bots' .py
     and does not auto-deploy. Write the request back to the agent's inbox as his
-    own unfinished patch. The agent applies his own patch.
+    own unfinished patch. The owner applies it. The agent does not.
 
     Returns path to written packet (or empty string on failure).
     """
@@ -913,7 +913,7 @@ def return_unfinished_code_request(request: dict) -> str:
         "",
         "This bot did not finish the patch. It does not edit other bots' .py",
         "and it does not auto-deploy. This file is your own unfinished patch.",
-        "You apply it yourself. Nothing was sent to owner_inbox.",
+        "Do not apply it. Write the proposed diff to owner_inbox/ for the owner to apply. Nothing was auto-applied.",
         "",
     ]
 
@@ -1924,7 +1924,7 @@ async def setup_mode_loop():
 #
 # Doctrine reminders:
 #   - Observations, NOT prescriptions. Raw stats only, the agent interprets.
-#   - Code patches authored by the agent. The agent applies his own patch. code_tuner observes.
+#   - Code patches are proposed by the agent. The owner applies them. code_tuner observes.
 #     Floor: never self-modify code_tuner.py; only reload a change already on disk.
 #     Do not edit other bots' .py and do not auto-deploy.
 
@@ -2738,8 +2738,8 @@ def write_perf_packet(bot_name: str, registry: dict) -> str:
         "",
         "*Observation packet — raw data only, no prescription. You decide whether anything",
         "here warrants action. To request the source for a specific function, write to",
-        "`code_tuner_meeting.json` (Stage 4). The agent authors and applies patches in his own",
-        "session; anomaly/reload notes go in `inbox\\`. To reset this bot's monitoring config, write `{\"action\": \"reset\",",
+        "`code_tuner_meeting.json` (Stage 4). Propose patches as a diff in owner_inbox;",
+        "the owner applies them. Anomaly notes may go in `inbox/`. To reset this bot's monitoring config, write `{\"action\": \"reset\",",
         "\"bot\": \"" + bot_name + "\"}` to `code_tuner_setup.json`.*",
     ]
 
@@ -3792,7 +3792,7 @@ async def _handle_add_metric(interp: dict, registry: dict) -> str:
     # Validate metric against category catalog
     cat_metrics = {m[0] for m in CATEGORY_METRIC_CATALOG.get(category, [])}
     if metric not in cat_metrics:
-        # Capability gap — the agent applies his own patch; do not edit code here
+        # Capability gap — propose a patch; do not edit code here
         log_tune(f"meeting: capability_gap — metric '{metric}' not in {category} catalog")
         return (f"capability_gap: metric '{metric}' not in '{category}' catalog. "
                 f"Available: {sorted(cat_metrics)}. To add new metrics, write a "
@@ -3888,7 +3888,7 @@ def _write_meeting_response_packet(directive: str, interp: dict,
             "",
             interp.get("error") or (
                 "Local classifier does not reset, pause, resume, or add_metric. "
-                "The agent applies his own patch."
+                "Propose a patch for the owner to apply. Do not edit the trading engine."
             ),
             "",
             "To change registry state, put the action in the meeting file yourself",
@@ -3913,7 +3913,7 @@ def _write_meeting_response_packet(directive: str, interp: dict,
         if gap_class == "capability_gap":
             lines += [
                 "",
-                "**Capability gap detected.** the agent applies his own patch. This bot",
+                "**Capability gap detected.** Propose a patch for the owner to apply. This bot",
                 "does not edit other bots' .py and does not auto-deploy.",
             ]
 
@@ -4014,7 +4014,7 @@ async def _process_meeting_file() -> None:
             interp["agent_authored"] = False
             interp["error"] = (
                 "Local classifier does not reset, pause, resume, or add_metric a bot. "
-                "Directive recorded. Registry not changed. The agent applies his own patch."
+                "Directive recorded. Registry not changed. Propose a patch for the owner to apply."
             )
     log_tune(f"meeting: intent={interp.get('intent')}, status={interp.get('status')}, "
              f"conf={interp.get('confidence', 0):.2f}")
@@ -4207,7 +4207,7 @@ def _cd_write_packet(bot_name, findings):
                        f"{src} | {'yes' if f['getenv'] else 'NO (bare)'} | L{f['lineno']} |")
         out += ["",
                 "The detector does NOT judge which side is right - it surfaces the mismatch.",
-                "The agent reads this packet and applies his own patch (fix code, or correct the doc).",
+                "Propose a patch for the owner to apply (fix code, or correct the doc). Do not edit the trading engine yourself.",
                 "Trading knobs default HIGH. Do NOT loosen SL / raise leverage under cover of a drift fix."]
         with open(path, "w", encoding="utf-8") as fh:
             fh.write("\n".join(out))
