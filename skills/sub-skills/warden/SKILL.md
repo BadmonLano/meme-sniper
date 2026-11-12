@@ -41,7 +41,7 @@ Lane tool: `python bots/tools/lane_run.py --lane warden --list`, then `--apply d
 + **inbox_cron_lock_reaper** - reaps stale inbox cron locks
 + **sniper_watch_monitor** - one P1 owner ping when Sniper's heartbeat is stale (> `SNIPER_STALE_ALERT_MIN`) or all components read cancelled (skipped when `stop_reason=user_stopped`), and one when Sniper is alive with zero buys for > `SNIPER_ZERO_BUY_ALERT_H`. Deduped until recovery. Replaces the generic offline monitor for meme_sniper.
 
-This skill is the agent's playbook for reading what warden writes and deciding what to do about it. **Warden writes. The agent reads + decides.** Doctor routes evidence; the agent authors any required patch via the code-monitor skill (the agent applies his own patches in place. Notes go to the agent's inbox). **the owner is not the threat model** - operator doc edits are work, not intrusion.
+This skill is the agent's playbook for reading what warden writes and deciding what to do about it. **Warden writes. The agent reads and proposes.** Doctor routes evidence; any code change is a diff in `owner_inbox/` and the owner applies it. Do not edit `bots/`. Operator doc edits by the owner are work, not an intrusion.
 
 ## Integrity - The End of the "Was That You?" Loop
 
@@ -71,7 +71,7 @@ asked it. Escalation is earned by the threat classes above - not by the owner do
 his job.
 
 **Patches and upgrades doctrine (unchanged, restated because it's the point):**
-warden and code_tuner FLAG. The agent authors the patch and applies it in place.
+warden and code_tuner FLAG. The agent proposes a diff in `owner_inbox/`. The owner applies it.
 Nothing in the immune system auto-edits trading code.
 Operator doc edits are still not the threat model.
 
@@ -163,7 +163,7 @@ Operate as the operator, not the checklist runner.
 **Tier 3 DECIDE + ACT (the agent decides, owner-ping notify-only):**
 - `WARDEN LOCKDOWN` - engages ecosystem-wide lockdown (bots that honor flag halt writes)
 - `INTEGRITY BASELINE` - refreshes the known-good hash baseline (the agent verifies the change trail first)
-- Adding/removing bots from `agent_BOTS_WHITELIST` in security_warden.py (code change - the agent authors patch via code-monitor, the agent patches in place)
+- Adding/removing bots from `agent_BOTS_WHITELIST` in security_warden.py (code change - propose a diff in `owner_inbox/`; the owner applies it)
 - `MEDIC ROLLBACK` Telegram is unwired. Do not expect a chat command to roll a bot back.
 
 **Tier 4 IMMEDIATE ESCALATION:**
@@ -215,11 +215,11 @@ Priority codes are **P1/P2/P3/P4** (not high/normal/low). Treat P1 as handle-now
 **v3.3 medic doctrine (BOUNDED - verified live):**
 - Auto: detect + backup + `medic_report` packet. Never writes code. Never spawns/restarts a process.
 - Telegram `MEDIC HEAL` is unwired. Auto path does not restore or auto-repair.
-- the agent applies his own patches in place. Warden does not copy them into bots/.
+- Propose patches in `owner_inbox/`. The owner applies them. Warden does not copy them into bots/.
 - Old `medic_healed` / `medic_sandbox_failed` / `medic_too_large` packets are dead.
 
 - Do not drop APPROVED/AMEND flags. They are ignored.
-- the agent patches in place if a new bot file should exist. Warden does not deploy it.
+- Propose a new bot file as a diff for the owner to add. Warden does not deploy it.
 
 ---
 
@@ -244,7 +244,7 @@ Priority codes are **P1/P2/P3/P4** (not high/normal/low). Treat P1 as handle-now
 - `bot_logs/KILL_SWITCH.flag` - manual only, neither warden nor the agent auto-engage
 
 **NEVER write:**
-- The warden bot file itself (`bots/sub-bots/security_warden.py`) - patches authored by the agent via code-monitor, patched by the agent in place
+- The warden bot file itself (`bots/sub-bots/security_warden.py`) - propose a diff; the owner applies it
 - `medic_backups/` - warden owns rotation
 - `canary/*` - these are decoys, never touch
 
@@ -311,7 +311,7 @@ When medic fires, it writes a packet (check **Priority:** P1 inside). Auto path 
 **Workflow:**
 1. Read the packet - note error class + backup path
 2. If AUTH/BILLING: pay/refresh key; no code patch
-3. If real code bug: the agent patches the file in place. Warden does not apply it.
+3. If real code bug: propose a diff in `owner_inbox/`. The owner applies it. Warden does not.
 4. If break-glass restore ran: diff quarantine vs running file; confirm running bytes are known-good old version
 5. Monitor that bot's heartbeats next cycle - medic did not restart the process
 6. Move packet to `inbox_results/done`
@@ -327,7 +327,7 @@ The integrity baseline is your "snapshot of files as the owner expects them." Wh
 
 **When to refresh baseline:**
 - After code changes (you just edited rules or integrity files - refresh after deployment)
-- After the agent patches a bot file in place (legitimate change already on disk)
+- After the owner has applied a bot-file patch (the change is already on disk)
 - After the owner makes manual edits to `.env` or any critical file
 
 **How to refresh:**
@@ -344,7 +344,7 @@ The integrity baseline is your "snapshot of files as the owner expects them." Wh
 Doctor packets land when medic backoff exhausts (3+ reports in window) OR heartbeat/silent-failure monitors escalate. **Live doctor gathers evidence and routes to the agent.** It does not call Grok/Claude to name the bug (`doctor_use_claude=False`; diagnose-via-LLM path retired).
 
 **Live packet:** `security_warden - investigate_<bot>_*.md` (P2)
-- the agent names the cause: code bug -> patch the file in place (the agent applies it); hung process -> the agent restarts it via Start_Bots.bat; external service (RPC / API auth) -> browse/check; unknown -> read the evidence again. Doctor notes already landed in the agent's inbox.
+- the agent names the cause: code bug -> propose a diff in `owner_inbox/` (the owner applies it); hung process -> tell the owner, do not restart it yourself; external service (RPC / API auth) -> report it; unknown -> read the evidence again. Doctor notes already landed in the inbox.
 - Log findings in LEARNINGS.md so the next human pass is faster
 
 **Retired skill packet names (do not expect these from live doctor):**
@@ -362,7 +362,7 @@ The daily digest now has six new sections beyond the original four. Read them in
 3. **Medic activity** (unchanged) - heal counts.
 
 
-5. **Code request queue** - pending `code_requests.json` count + age of oldest unresolved. These are now FALLBACK-only entries - the agent authors most patches in place without going through code_requests. If pending > 5 OR oldest > 48h, it means code_tuner's routing loop has fallen behind on writing packets to place, OR the owner hasn't picked them up. Investigate via `code_tuner.log`.
+5. **Code request queue** - pending `code_requests.json` count + age of oldest unresolved. These are fallback specs. The agent proposes diffs in `owner_inbox/`; the owner applies them. If pending > 5 OR oldest > 48h, code_tuner's routing loop may be behind, or the owner has not picked the proposals up. Investigate via `code_tuner.log`.
 
 
 8. **Integrity** (unchanged) - hash check events.
@@ -380,7 +380,7 @@ The daily digest now has six new sections beyond the original four. Read them in
 ## Hard Laws
 
 - **No `memory_add` from warden.** Birth doctrine: warden persists via bot_logs JSON + inbox packets only - never the memory tool path.
-- **Warden file:** the agent may patch `security_warden.py` in place. `os.execv` reloads warden only. Do not start the bot from this skill. Do not drop approval flags to deploy other bots.
+- **Warden file:** propose a diff for `security_warden.py`. The owner applies it. `os.execv` reloads warden only after a file is already on disk. Do not start the bot from this skill. Do not drop approval flags to deploy other bots.
 - **NEVER manually delete `medic_backups/*`.** Warden owns rotation.
 - **NEVER refresh integrity baseline if you didn't cause the drift.** Investigate first.
 - **NEVER issue `WARDEN LOCKDOWN` without notifying the owner simultaneously.** Lockdown halts trading bots.
@@ -408,7 +408,7 @@ Inbox packets: inbox\security_warden - *.md
 ─── v3.3 additions ───
 Doctor log: bot_logs\doctor_log.json
 Heal attempts: bot_logs\heal_attempts.json
-Code requests: bot_logs\code_requests.json (mostly dormant now - doctor prefers sending diagnosis packets directly to the agent for patch authoring in place. code_tuner is observation only.)
+Code requests: bot_logs/code_requests.json (mostly dormant now - doctor sends diagnosis packets so the agent can propose a diff. The owner applies it. code_tuner is observation only.)
 Offline state: bot_logs\warden_offline_alert_state.json
 Approval archive: owner_inbox\archive\<ts>_<flag_name>
 ```
@@ -417,7 +417,7 @@ Approval archive: owner_inbox\archive\<ts>_<flag_name>
 ```
 ─── v3.3 additions ───
 Code requests: bot_logs\code_requests.json
-                    (mostly legacy/dormant path. Doctor now prefers direct packets to the agent so he authors the patches himself in place.)
+                    (mostly legacy/dormant path. Doctor sends packets so the agent can propose a diff. The owner applies it.)
 ```
 
 **Move (after handling):**
@@ -426,7 +426,7 @@ Inbox done: inbox_results\done\<original_filename>
 ```
 
 **NEVER write:**
-- `bots/sub-bots/security_warden.py` (patches authored by the agent via code-monitor, patched by the agent in place)
+- `bots/sub-bots/security_warden.py` (propose a diff; the owner applies it)
 - `bot_logs\medic_backups\` (warden rotation)
 - `bot_logs\canary\*` (decoys, leave alone)
 - `bot_logs\KILL_SWITCH.flag` (manual emergency only)
@@ -451,7 +451,7 @@ After 90 days, review in LEARNINGS. If digest is being ignored, shorten format. 
 ## What This Skill Is NOT
 
 - Does not watch positions (meme_sniper's own risk layer does that); warden watches the perimeter
-- NOT a substitute for code_tuner (code_tuner is now pure observation; the agent authors patches from doctor signals in place (the agent applies them))
+- NOT a substitute for code_tuner (code_tuner is observation; the agent proposes a diff from doctor signals and the owner applies it)
 - NOT for triggering trade decisions (warden never says "buy this" or "skip this")
 - NOT a source of trading signals (warden writes findings, not signals)
 - NOT a place to discuss compromise (compromise events go straight to owner-ping + LOCKDOWN)

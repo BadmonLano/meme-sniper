@@ -31,7 +31,8 @@ def make_ns(sell_lands=True):
           "execute_sell_signal": execute_sell_signal, "_knob_f": lambda k: 0.0,
           "higher_cap_stop_floors": lambda mcap, mode="flip": (0.0, 0.0),
           "PROTECT_ENFORCE": True, "PROTECT_SL_MIN_PCT": 3.0, "PROTECT_SL_MAX_PCT": 95.0,
-          "PROTECT_TP_MIN_PCT": 5.0, "PROTECT_MAX_RETRIES": 5, "PROTECT_DEFAULT_STOP": True}
+          "PROTECT_TP_MIN_PCT": 5.0, "PROTECT_MAX_RETRIES": 5, "PROTECT_DEFAULT_STOP": True,
+          "ARMED_STOPS": True}
     exec(SRC[A:B], ns)
     ns.update(POS=pos, PKTS=pkts, RESP=resp, TG=tg, LOGS=logs, SELLS=sells, TMP=tmp)
     return ns
@@ -128,6 +129,31 @@ def test_retries_exhausted_alert_once_agent_and_default():
         assert len(ex) == 1 and ex[0]["priority"] == "high" and ex[0]["context"]["attempts"] == 5
         assert ex[0]["context"]["source"] == ("agent_armed" if armed else "default_flip_stop")
         assert sum("PROTECTIVE SELL FAILED" in m for m in ns["TG"]) == 1
+
+
+def test_armed_stops_off_suggests_and_does_not_sell():
+    ns = make_ns()
+    ns["ARMED_STOPS"] = False
+    ns["POS"]["M1"] = bag(armed_protection={"sl_pct": 15.0, "tp_pct": 60.0})
+    assert run(ns["_check_armed_protection"]("M1", ns["POS"]["M1"], -16.0, {"stop_loss_pct": 20}, 0)) is False
+    assert ns["SELLS"] == []
+    pkt = ns["PKTS"][-1]
+    assert pkt["type"] == "protective_exit_suggested"
+    assert "not a sell" in pkt["context"]["note"]
+    assert "SUGGESTION" in ns["TG"][-1]
+    n = len(ns["PKTS"])
+    assert run(ns["_check_armed_protection"]("M1", ns["POS"]["M1"], -16.0, {"stop_loss_pct": 20}, 0)) is False
+    assert len(ns["PKTS"]) == n and ns["SELLS"] == []
+
+
+def test_default_flip_stop_does_not_sell_when_armed_stops_off():
+    ns = make_ns()
+    ns["ARMED_STOPS"] = False
+    ns["POS"]["M1"] = bag()
+    assert run(ns["_check_armed_protection"]("M1", ns["POS"]["M1"], -21.0, {"stop_loss_pct": 20}, 0)) is False
+    assert ns["SELLS"] == []
+    assert ns["PKTS"][-1]["type"] == "protective_exit_suggested"
+    assert ns["PKTS"][-1]["context"]["reason"] == "default_flip_stop"
 
 
 def test_agent_armed_stop_unchanged():

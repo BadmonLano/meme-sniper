@@ -2,7 +2,7 @@
 
 > "An agent ships something real and useful? SNIPER will attach a repo, and mint a token around it."
 
-Module: `bots/sub-bots/launch_rail.py` (ships off-chain: dry runs until `LAUNCH_RAIL_LIVE=1`). `meme_sniper.py` has one loop, `launch_rail_relay_loop`, registered as `SupervisedTask("launch_rail_relay")` right after `relay_janitor`. It polls the relay every 5 s, and only while LAUNCH_RAIL_ENABLED is on. You can call it from the CLI or from code with `import launch_rail; launch_rail.launch(req, ...)` / `launch_rail.check_repo(url)`.
+Module: `bots/sub-bots/launch_rail.py` (ships **off**: `LAUNCH_RAIL_ENABLED` defaults false and `LAUNCH_RAIL_LIVE` defaults to `0`, dry runs until both are on). A missing `SNIPER_PAPER_MODE` is paper, and paper mode never sends. `meme_sniper.py` has one loop, `launch_rail_relay_loop`, registered as `SupervisedTask("launch_rail_relay")` right after `relay_janitor`. It polls the relay every 5 s, and only while LAUNCH_RAIL_ENABLED is on. You can call it from the CLI or from code with `import launch_rail; launch_rail.launch(req, ...)` / `launch_rail.check_repo(url)`.
 
 ## What it does
 1. **Request**: a JSON file passed with `--request`, or (how agents do it) one file per request in `json_relay/launch_requests/<id>.json`, which the engine's relay loop picks up (see Agent relay below). The legacy folder `bot_logs/launch_requests/` is only read by `scan-requests` and is always dry-run.
@@ -19,7 +19,7 @@ Agents write JSON into the bot's `json_relay/` (same convention as `agent_signal
 - **Results:** `json_relay/launch_results.json` → `{"results": {"<id>": {...}}}` with status, mode, why_not_live, mint, pump_url, signature, solscan, metadata_uri, cost_estimate_sol, repo_score/reasons, simulation, creator (pubkey/balance), and metadata. Full detail is in `bot_logs/launch_rail_log.jsonl`.
 - **Idempotency:** `bot_logs/launch_rail_seen.json`. An id is marked seen *before* launching and is never processed twice. Processed files are renamed `*.processed_<ms>`.
 - **Schema:** `id`, `action` ("launch"), `repo_url`, `name`, `ticker`, `description`, `image`, `website`, `twitter`, `telegram`, `dev_buy_sol`, `slippage`, `priority_fee`, `dry_run` (bool, optional), `requested_by` (`confirm` is accepted and ignored). Required: id, action, repo_url, name, ticker, description, image, dev_buy_sol, requested_by. Unknown fields or wrong types → `rejected_schema`.
-- **Live from the relay when:** LAUNCH_RAIL_ENABLED on and env LAUNCH_RAIL_LIVE=1 (LIVE ships 0, so launches are dry runs until the owner sets it). The agent decides each launch; there is no human confirm. `"dry_run": true` keeps one request off-chain. Otherwise `why_not_live` lists the reasons. The dev-buy cap and repo gate still apply.
+- **Live from the relay when:** the owner has set LAUNCH_RAIL_ENABLED on and env LAUNCH_RAIL_LIVE=1 (both ship off, so launches are dry runs until the owner opts in) and paper mode is explicitly off. `"dry_run": true` keeps one request off-chain. Otherwise `why_not_live` lists the reasons. The dev-buy cap and repo gate still apply. `--confirm` is accepted and ignored, so do not arm both switches unless an accepted request should send.
 - **Rule change:** the earlier rule "dropped requests are always dry-run" now applies only to the legacy `bot_logs/launch_requests/` folder (`scan-requests`). The json_relay path goes live under the config above.
 - To test without the bot running (from the drop folder): `python bots/sub-bots/launch_rail.py --env bots/.env relay-once --no-upload`.
 

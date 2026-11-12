@@ -1026,6 +1026,12 @@
       "unit": "minutes",
       "src": "env"
     },
+    "ARMED_STOPS": {
+      "label": "Armed stops sell without a fresh approval",
+      "section": "Modes",
+      "unit": "on/off",
+      "src": "env"
+    },
     "BRAND_CANON_HYSTERESIS": {
       "label": "Canonical Clone Hysteresis",
       "section": "Scanners & monitors",
@@ -1123,9 +1129,15 @@
       "src": "env"
     },
     "OWNER_POS_TIMEOUT_MIN": {
-      "label": "Owner position answer window, then auto-manage",
+      "label": "Owner position answer window (reminder only unless auto-timeout is on)",
       "section": "Owner positions",
       "unit": "min",
+      "src": "env"
+    },
+    "OWNER_POS_AUTO_TIMEOUT": {
+      "label": "Take over an unanswered owner bag when the window ends",
+      "section": "Owner positions",
+      "unit": "on/off",
       "src": "env"
     },
     "OWNER_POS_MIN_USD": {

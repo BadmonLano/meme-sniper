@@ -48,6 +48,7 @@ def _main(engine_path):
     ns.update({"Optional": Optional, "SOL_MINT": "SOLmint", "get_wallet_token_balances": get_wallet_token_balances,
                "jupiter_quote_fresh": jupiter_quote_fresh, "get_sol_price_usd": get_sol_price_usd})
     import os as _os; ns.setdefault("os", _os); _c = src.find("def _env_clean("); _c >= 0 and exec(src[_c:src.index("\n\n", _c)], ns); _h = src.find("def _envv("); _h >= 0 and exec(src[_h:src.index("\n\n", _h)], ns)  # blank-as-unset helper used by the extracted code
+    os.environ.pop("OWNER_POS_AUTO_TIMEOUT", None)  # shipped default is off
     exec(src[a:b], ns)
     with open(tmp / "execution_ledger.jsonl", "w") as f:
         f.write(json.dumps({"event": "buy", "mint": "BOTMINT111"}) + "\n")
@@ -75,10 +76,16 @@ def _main(engine_path):
         rid = ns["_owner_pos_state"]()["records"]["WIFMINT111"]["id"]
         await ns["execute_owner_position_signal"]({"signal_id": "s1", "id": rid, "decision": "manage"})
         assert "WIFMINT111" in OPEN and RESP[-1][1] == "executed"
-        # third bag: timeout -> auto-manage
+        # third bag: timeout does not take over unless OWNER_POS_AUTO_TIMEOUT is on
+        assert ns["OWNER_POS_AUTO_TIMEOUT"] is False
         cur["BONKMINT11"] = h("BONK", 30); HOLD.update(cur)
         await ns["_owner_pos_scan"]({k: v for k, v in cur.items() if k != "BONKMINT11"}, cur)
         st = ns["_owner_pos_state"](); st["records"]["BONKMINT11"]["detected_ts"] -= 31 * 60; ns["_owner_pos_save"](st)
+        t = asyncio.create_task(ns["owner_position_loop"]()); await asyncio.sleep(0.2); t.cancel()
+        assert "BONKMINT11" not in OPEN
+        assert ns["_owner_pos_state"]()["records"]["BONKMINT11"]["state"] == "pending"
+        assert "timeout_held" in ev()
+        ns["OWNER_POS_AUTO_TIMEOUT"] = True
         t = asyncio.create_task(ns["owner_position_loop"]()); await asyncio.sleep(0.2); t.cancel()
         assert "BONKMINT11" in OPEN and ns["_owner_pos_state"]()["records"]["BONKMINT11"]["state"] == "managed"
         # tweak 1: taken-over positions skip the max-hold exit by default

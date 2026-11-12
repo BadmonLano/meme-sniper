@@ -1,6 +1,8 @@
 """
 meme_sniper.py v14.3 - Solana memecoin intelligence + execution + position management.
-No auto-buy. Sells only on the agent's signal or a stop/take-profit the agent armed.
+No auto-buy. A missing SNIPER_PAPER_MODE is paper (no signing). Live signing is
+explicit (0/false/no/off). Buys and sells need a fresh owner approval. Armed
+stops sell on their own only when ARMED_STOPS is explicitly on (default off).
 Version history: TIMELINE.md (repo root).
 Tunables: bots/.env.example.
 """
@@ -26,6 +28,14 @@ def _envv(key, default=None):
     Inline '# comments' are stripped, so 'KEY=0  # note' reads as '0'."""
     v = _env_clean(os.environ.get(key))
     return default if v is None or not str(v).strip() else v
+
+
+try:
+    from safe_defaults import paper_mode as _sd_paper_mode, armed_stops_enabled as _sd_armed_stops
+except ImportError:  # script launched with a path that is not bots/
+    import sys as _sd_sys
+    _sd_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from safe_defaults import paper_mode as _sd_paper_mode, armed_stops_enabled as _sd_armed_stops
 
 
 # ── Workspace root (public build) ─────────────────────────────────────────
@@ -459,11 +469,16 @@ async def _upg_swap(v1, quote, kw):
                                    tx_cls=globals().get("_SoldersVersionedTx"), paper=bool(PAPER_MODE),
                                    log=lambda t: _log(t, prefix="swap"))
 _JSON_RELAY = Path(WS_JSON_RELAY)
-# PAPER MODE (SNIPER_PAPER_MODE, off by default; read once at start, so switching
-# needs a restart). On: the full pipeline runs, swaps are simulated at real Jupiter
-# quotes against a paper wallet, sendTransaction is refused, launches are dry-run,
-# and trade state lives in bot_logs/paper/ (see _paper_redirect_state at the end).
-PAPER_MODE = _envv("SNIPER_PAPER_MODE", "0").strip().lower() in ("1", "true", "yes", "on")
+# PAPER MODE. Missing or blank SNIPER_PAPER_MODE is paper (no signing). Live
+# signing only when the value is explicitly 0/false/no/off. Read once at start;
+# switching needs a restart. On: the full pipeline runs, swaps are simulated at
+# real Jupiter quotes against a paper wallet, sendTransaction is refused,
+# launches are dry-run, and trade state lives in bot_logs/paper/.
+PAPER_MODE = _sd_paper_mode()
+# Armed SL/TP and the default flip stop sell only when ARMED_STOPS is explicitly
+# on. Off (the default, including when the var is missing): a breach is a
+# suggestion for the owner, not a sell. Read once at start.
+ARMED_STOPS = _sd_armed_stops()
 # 2026-10-16 safety rails (ported from live). 0 = off.
 DAILY_BUY_CAP               = int(float(_envv("DAILY_BUY_CAP", "10")))        # buys per ET day
 DAILY_LOSS_STOP_SOL         = float(_envv("DAILY_LOSS_STOP_SOL", "0.5"))      # realized SOL loss today that halts buys
@@ -11233,13 +11248,17 @@ async def execute_harvest_holding(sig: dict) -> None:
 #   manage -> booked as a normal flip position (normal SL / TP / trail / time
 #             rules, the same as promote_holding with mode=flip)
 #   leave  -> stays on the holdings ledger; holding alerts only, never sold
-#   no answer within OWNER_POS_TIMEOUT_MIN -> auto-manage, announced
+#   no answer within OWNER_POS_TIMEOUT_MIN -> take over ONLY if
+#   OWNER_POS_AUTO_TIMEOUT is explicitly on (default off). Otherwise the bag
+#   stays pending and nothing is sold until a fresh /manage or /leave.
 # Replies: relay {"action": "owner_position", "id"|"mint"|"ticker": ..,
 # "decision": "manage"|"leave"} or the owner command /manage <ticker> or
 # /leave <ticker> (written to owner_position_decisions.jsonl).
 # Every detection, decision and timeout goes to owner_positions.jsonl.
 OWNER_POS_ENABLED     = _envv("OWNER_POS_ENABLED", "true").lower() in ("true", "1", "yes")
 OWNER_POS_TIMEOUT_MIN = float(_envv("OWNER_POS_TIMEOUT_MIN", "30"))
+# Default off. A timeout does not take over or sell unless this is explicitly on.
+OWNER_POS_AUTO_TIMEOUT = _envv("OWNER_POS_AUTO_TIMEOUT", "off").strip().lower() in ("on", "true", "1", "yes")
 OWNER_POS_MIN_USD     = float(_envv("OWNER_POS_MIN_USD", "10"))
 # Taken-over owner positions skip the max-hold time exit unless this is on:
 # they exit on SL, TP and trail only.
@@ -11352,16 +11371,23 @@ async def _owner_pos_register(mint: str, h: dict, st: dict, via: str) -> None:
                 "question": msg,
                 "reply": {"relay": {"action": "owner_position", "id": rec["id"], "decision": "manage | leave"},
                           "owner_command": f"/manage {tick}  or  /leave {tick}"},
-                "timeout": (f"No answer in {OWNER_POS_TIMEOUT_MIN:g} min -> the bot manages it with its "
-                            f"normal flip SL / TP / trail."),
+                "timeout": (
+                    (f"No answer in {OWNER_POS_TIMEOUT_MIN:g} min -> the bot manages it with its "
+                     f"normal flip SL / TP / trail. OWNER_POS_AUTO_TIMEOUT is on.")
+                    if OWNER_POS_AUTO_TIMEOUT else
+                    (f"No answer does not sell or take over this bag (OWNER_POS_AUTO_TIMEOUT is off). "
+                     f"It stays pending until you /manage or /leave {tick}.")),
                 "leave_means": "holding alerts only; the bot never sells it",
             }, prefix="meme_sniper", identifier=f"owner_position_{tick}_{mint[:8]}")
         except Exception as e:
             _log(f"owner_position packet err: {e}", prefix="owner_pos")
         try:
+            _tout = (f"Auto-manage in {OWNER_POS_TIMEOUT_MIN:g} min if no answer "
+                     f"(OWNER_POS_AUTO_TIMEOUT is on)."
+                     if OWNER_POS_AUTO_TIMEOUT else
+                     "Nothing is sold until you answer. Auto-timeout is off.")
             await send_telegram(f"👤 <b>Owner position: {tick}</b>\n{msg}\n"
-                                f"Reply /manage {tick} or /leave {tick}. "
-                                f"Auto-manage in {OWNER_POS_TIMEOUT_MIN:g} min if no answer.")
+                                f"Reply /manage {tick} or /leave {tick}. {_tout}")
         except Exception:
             pass
 
@@ -11667,9 +11693,15 @@ async def owner_position_loop() -> None:
                             await _owner_pos_apply(rec, mine[-1].get("decision"), "owner_command", st)
                             continue
                         if _now_ts() - float(rec.get("detected_ts") or 0) >= OWNER_POS_TIMEOUT_MIN * 60:
-                            _owner_pos_log("timeout", rec, timeout_min=OWNER_POS_TIMEOUT_MIN)
-                            await _owner_pos_take_over(rec, "timeout", st,
-                                                       reason=f"no answer in {OWNER_POS_TIMEOUT_MIN:g} min")
+                            if OWNER_POS_AUTO_TIMEOUT:
+                                _owner_pos_log("timeout", rec, timeout_min=OWNER_POS_TIMEOUT_MIN)
+                                await _owner_pos_take_over(rec, "timeout", st,
+                                                           reason=f"no answer in {OWNER_POS_TIMEOUT_MIN:g} min")
+                            elif not rec.get("timeout_held"):
+                                rec["timeout_held"] = True
+                                _owner_pos_save(st)
+                                _owner_pos_log("timeout_held", rec, timeout_min=OWNER_POS_TIMEOUT_MIN,
+                                               note="OWNER_POS_AUTO_TIMEOUT is off; waiting for a fresh /manage or /leave")
         except Exception as e:
             _log(f"owner_position loop err: {e!r}", prefix="owner_pos")
         await asyncio.sleep(60)
@@ -17835,7 +17867,7 @@ async def interpret_meeting_message(message: str, current_overrides: dict) -> di
 
     # Sprint 41: capability gap detection. If validator marked a missing param,
     # ask the LLM to classify (hard_locked vs capability_gap vs ambiguous).
-    # capability_gap → fire an inbox PACKET to the agent (Cert 007 ruling); he authors and applies the patch, then notifies via owner_inbox.
+    # capability_gap → inbox packet. The agent proposes a diff; the owner applies it.
     gap_param = validated.pop("_sprint41_gap_param", None)
     if gap_param:
         try:
@@ -17864,7 +17896,7 @@ async def interpret_meeting_message(message: str, current_overrides: dict) -> di
                     validated["error"] = (
                         f"Param '{gap_param}' does not exist yet but is a real capability gap "
                         f"(not HARD-LOCKED). Inbox packet type=capability_gap written. "
-                        f"the agent authors and applies the patch, then notifies the owner. code_requests.json is dead."
+                        f"Propose a diff in owner_inbox. The owner applies it. Do not edit the engine. code_requests.json is dead."
                     )
                     validated["code_request_id"] = req_id
             elif cls == "ambiguous":
@@ -17978,11 +18010,9 @@ def _sniper_write_code_request_for_gap(param: str, directive_message: str,
         f"{gap_classification.get('risk_notes', '(none)')}\n"
     )
 
-    # ── the owner's ruling (Cert 007, 2026-07-20): capability gaps are PACKETS to
-    # The agent, not entries in code_requests.json — that file was retired in Sprint
-    # 42 and nothing reads it; requests written there vanished silently. New
-    # chain: gap → inbox packet → the agent authors the patch (code-monitor
-    # doctrine) and applies it → owner_inbox notice (notify-only).
+    # Capability gaps are packets, not entries in code_requests.json (retired).
+    # Chain: gap → inbox packet → the agent proposes a diff in owner_inbox.
+    # The owner applies it. The agent does not edit the trading engine.
     packet = {
         "id":              req_id,
         "type":            "capability_gap",
@@ -17996,9 +18026,9 @@ def _sniper_write_code_request_for_gap(param: str, directive_message: str,
         "proposed_param_name":    param,
         "gap_classification":     gap_classification.get("classification"),
         "description":     description,
-        "_doctrine": ("A capability gap, not a HARD-LOCKED rejection. YOUR patch is "
-                       "needed: author it via code-monitor doctrine and apply it yourself; "
-                       "drop a notify-only note in owner_inbox. The bot cannot do this itself and the "
+        "_doctrine": ("A capability gap, not a HARD-LOCKED rejection. Propose a patch "
+                       "as a diff in owner_inbox for the owner to apply. Do not edit the "
+                       "trading engine yourself. The bot cannot do this itself and the "
                        "old code_requests.json route is a retired dead-drop."),
         "actions_taken":   [],
     }
@@ -25873,9 +25903,11 @@ async def _ol_check(mint: str, rec: dict, s: dict) -> None:
 
 # --- SNIPER LAUNCH + REPO WATCH (2026-10-20) --------------------------
 # launch_request_loop: picks up json_relay/launch_requests/*.json and bot_logs/launch_requests/*.json.
-# Only requests with confirm:true AND dry_run:false go to the rail, as a child process
-# `launch_rail.py launch --request <file> --confirm` with LAUNCH_RAIL_LIVE=1 in the CHILD env only.
-# The rail still enforces LAUNCH_RAIL_ENABLED, the repo gate and the dev-buy cap (0.5 SOL).
+# Only requests with confirm:true AND dry_run:false are handed to the rail.
+# The child inherits the environment. It does not set LAUNCH_RAIL_LIVE.
+# A send still needs the owner to have opted in: LAUNCH_RAIL_ENABLED on,
+# LAUNCH_RAIL_LIVE=1, and paper mode explicitly off. The repo gate and the
+# dev-buy cap (0.5 SOL) still apply.
 # Each request is recorded in the seen ledger and moved to processed/ BEFORE the rail runs,
 # so it can never double-send; failures are logged once and never retried. The rail's
 # agent_inbox hook writes the agent's own_launch inbox note. Results go to json_relay/launch_results.json
@@ -25912,7 +25944,7 @@ async def _sl_run_launch(req_file: Path, timeout: float = 300.0) -> dict:
     rail = _ol_rail_path()
     if not rail:
         return {"status": "error", "error": "launch_rail.py not found"}
-    env = dict(os.environ); env["LAUNCH_RAIL_LIVE"] = "1"     # child env only
+    env = dict(os.environ)  # inherit LAUNCH_RAIL_LIVE; never force the child live
     try:
         proc = await asyncio.create_subprocess_exec(
             sys.executable, str(rail), "launch", "--request", str(req_file), "--confirm",
@@ -30510,13 +30542,44 @@ async def _check_armed_protection(mint: str, position: dict, pnl_pct: float,
             ap, state_key, leg = dp, "default_protection", ("sl", 100.0, "default_flip_stop")
     if not leg:
         return False
+    kind, pct, reason = leg
+    ticker = position.get("ticker", "?")
+    # Default off: a breached stop is a suggestion. Selling needs ARMED_STOPS
+    # explicitly on, or a fresh owner-approved sell signal.
+    if not globals().get("ARMED_STOPS"):
+        flag = f"suggested_{kind}"
+        if not ap.get(flag):
+            ap[flag] = _now_iso()
+            position[state_key] = ap
+            upsert_position(mint, position)
+            _log(f"protect: {ticker} {reason} at {pnl_pct:+.1f}% — suggestion only "
+                 f"(ARMED_STOPS off). No sell until the owner approves one.", prefix="protect")
+            try:
+                write_inbox_packet_generic({
+                    "id": f"x_evt_protect_suggest_{kind}_{mint[:8]}",
+                    "type": "protective_exit_suggested",
+                    "received_at": _now_iso(),
+                    "priority": "high",
+                    "context": {"mint": mint, "ticker": ticker, "leg": kind, "reason": reason,
+                                "pnl_pct": round(pnl_pct, 2), "sell_pct": pct,
+                                "note": ("ARMED_STOPS is off. This is a suggestion, not a sell. "
+                                         "A sell still needs a fresh owner approval. Set ARMED_STOPS=1 "
+                                         "only to let a breached stop sell without that approval.")},
+                }, prefix="evt", identifier=f"protect_suggest_{kind}_{mint[:8]}")
+            except Exception:
+                pass
+            try:
+                await send_telegram(
+                    f"💡 SUGGESTION (not sold): {ticker} hit {reason} at {pnl_pct:+.1f}%. "
+                    f"ARMED_STOPS is off, so nothing was sold. Approve a sell if you want out.")
+            except Exception:
+                pass
+        return False
     if has_inflight_sell(mint):
         return True
-    kind, pct, reason = leg
     if int(ap.get(f"{kind}_attempts") or 0) >= PROTECT_MAX_RETRIES:
         await _protect_exhausted_alert(mint, position, kind, pnl_pct, state_key)
         return False
-    ticker = position.get("ticker", "?")
     ap[f"{kind}_fired_at"] = _now_iso()
     ap[f"{kind}_fired_pnl_pct"] = round(pnl_pct, 2)
     ap[f"{kind}_attempts"] = int(ap.get(f"{kind}_attempts") or 0) + 1
@@ -30973,8 +31036,8 @@ async def check_position(mint: str, position: dict, tick_balances=None) -> None:
     age_min = (_now_ts() - position.get("opened_at_ts", _now_ts())) / 60
 
     # ── v14 PROTECTIVE ORDERS (2026-10-14) ───────────────────────────────────
-    # The agent's own armed SL/TP. The bot does not decide anything here: it runs
-    # the exact levels the agent set on his last touch, on the executable number.
+    # Levels the agent set. They sell only when ARMED_STOPS is explicitly on.
+    # Otherwise a breach is a suggestion and nothing is sent.
     if await _check_armed_protection(mint, position, pnl_pct, params, mcap_now):
         return
     if position.get("own_launch"):
@@ -33641,9 +33704,9 @@ def _build_autopsy_lessons(record: dict) -> list[str]:
 #                       CA RESEARCH RESPONDER LOOP
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Token Father auto-trigger. research responder writes a CA research request when it
-# detects a CA mention anywhere (DM, X mention, web result). Sniper vets it
-# and writes a ca_intel inbox packet.
+# CA research responder. It vets requests the user explicitly asked for
+# (json_relay/ca_research_request.json). A base58 string elsewhere is not a
+# request. Sniper writes a ca_intel inbox packet. It does not buy.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # ════════════════════════════════════════════════════════════════════════════

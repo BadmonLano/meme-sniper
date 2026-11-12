@@ -8,8 +8,10 @@ AGENT_MODE (bots/.env, asked FIRST in setup):
 Held signals live in json_relay/pending_owner_approval.json and get an owner_inbox card.
 Owner answers go to bot_logs/owner_trade_approvals.jsonl. An approved signal is put back
 on agent_signals.json with a fresh timestamp and runs through every normal gate.
-Bot-internal protective exits (armed SL/TP, stuck-bag watchdog) are not agent signals and
-are not held: they protect the owner's money in both modes.
+Bot-internal protective exits are not agent signals. They sell without a fresh
+approval only when ARMED_STOPS is explicitly on (default off). Otherwise a
+breached stop is a suggestion. The stuck-bag watchdog only retries a sell that
+already went out.
 """
 import json
 import os

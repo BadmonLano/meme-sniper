@@ -94,9 +94,12 @@ In `bots/.env` keep `AGENT_MODE=suggest` and `SNIPER_PAPER_MODE=1` (both shipped
 
 | Setting | Default | What it means |
 |---|---|---|
-| `SNIPER_PAPER_MODE` | **off (0)** | **Trading is live from the first start.** It signs real buys and sells. Set `SNIPER_PAPER_MODE=1` to simulate at real quotes and send nothing. Your agent asks you paper or live on first run. |
-| `LAUNCH_RAIL_ENABLED` | **off (false)** | The launch rail does nothing until you turn it on. |
-| `LAUNCH_RAIL_LIVE` | **off (0)** | Even with the rail on, launches are dry runs until you set this to `1`. Both must be on for a real on-chain launch. |
+| `SNIPER_PAPER_MODE` | **on (paper)** | **Missing, blank, or `1` does not sign.** Fills are simulated at real quotes. Live signing only when you set this to `0` (or `false` / `no` / `off`) and confirm `LIVE`. |
+| `AGENT_MODE` | **suggest** | Buys and sells are suggestions until you approve that trade. `auto` is an explicit opt-in. |
+| `ARMED_STOPS` | **off (0)** | A breached stop or take-profit is a suggestion, not a sell. Set `1` only if you want those exits to sell without a fresh approval. |
+| `OWNER_POS_AUTO_TIMEOUT` | **off** | A bag the bot did not buy is never taken over or sold just because 30 minutes passed. Set `on` to allow that timeout. |
+| `LAUNCH_RAIL_ENABLED` | **off (false)** | The launch rail does nothing until you turn it on. It ships off. |
+| `LAUNCH_RAIL_LIVE` | **off (0)** | Even with the rail on, launches are dry runs until you set this to `1`. Both must be on, and paper mode must be off, for a real on-chain launch. |
 | `LAUNCH_MAX_DEV_BUY_SOL` | 0.5 | Hard cap on the dev buy for a launch. |
 | `bots/.env` | ignored by git | Your keys live here. **Never commit it, zip it or paste it anywhere.** Only `.env.example` (blank) is in the repo. |
 
@@ -106,7 +109,7 @@ Honest notes:
 - **What wallet access means:** the private key in `bots/.env` lets the bot sign **any** transaction from that wallet, not just trades: it could move or spend everything in it. So use a burner, keep the balance small, and sweep profits out (`LEDGER_ADDRESS`).
 - **Agent buys need a working RPC.** Without a reachable `RPC_URL` (or `HELIUS_API_KEY`) buy signals are refused, not queued.
 - Most memecoins go to zero and many are scams. The gates here reduce risk; they don't remove it. Bugs, RPC outages and bad model output can lose money.
-- Once set up, your agent acts on its own (buys, sells, launches if armed). Alerts are notify-only; nothing waits for your OK. Your safety is in the switches above, so set them deliberately.
+- With the shipped defaults the agent suggests and you approve each buy and sell. Live signing, armed stops, the owner-position timeout, and the launch rail stay off until you opt in. Alerts are notify-only.
 - MIT license, no warranty. You're responsible for every transaction it sends.
 
 ## Safety caps and your settings
@@ -121,7 +124,7 @@ These are on by default. Every one is a line in `bots/.env`; leave it blank to k
 | `MAX_PUMP_5M_PCT` | 50 | Don't chase: skip a token already up more than this % in the last 5 minutes. |
 | `RUG_FAIL_CLOSED` | true | If 4 or more rug-check sources can't be reached (`RUG_FAIL_CLOSED_MIN_ERRORS`), treat the token as unsafe instead of "unknown". |
 | `CANDIDATE_FLOOR` | true | Hide a token from your agent's inbox unless it has at least `CANDIDATE_MIN_LIQ_USD` (10,000) of liquidity, no fake-volume flag and no bundled launch. |
-| `TRADING_HOURS` / `TRADING_TZ` | blank (always) / America/New_York | Only surface and buy tokens in this window, e.g. `09:00-23:00`. Overnight windows like `22:00-02:00` work. Selling and stops always run. `TRADING_HOURS_GATES_SCAN=false` keeps scanning outside the window but still blocks buys. |
+| `TRADING_HOURS` / `TRADING_TZ` | blank (always) / America/New_York | Only surface and buy tokens in this window, e.g. `09:00-23:00`. Overnight windows like `22:00-02:00` work. Monitoring keeps running outside the window. A sell still needs your approval unless `ARMED_STOPS=1`. `TRADING_HOURS_GATES_SCAN=false` keeps scanning outside the window but still blocks buys. |
 | `LOSS_STREAK_PAUSE` | 3 | After this many losing trades in a row, pause buys for `LOSS_STREAK_PAUSE_HOURS` (2). |
 | `SIZE_HALVE_AFTER_LOSSES` | 2 | After this many losses in a row, buys are half size until a winner. |
 | `MAX_OPEN_POSITIONS` | 3 | Never hold more than this many tokens at once. |
@@ -131,16 +134,16 @@ These are on by default. Every one is a line in `bots/.env`; leave it blank to k
 | `SIGNAL_RECHECK` | true | Right before any agent or manual buy, take a fresh price/liquidity snapshot. Refuse if liquidity is under `SIGNAL_RECHECK_MIN_LIQ_USD` (10,000), if the market cap moved more than `SIGNAL_RECHECK_MAX_DRIFT_PCT` (50%) since the signal, or if the rug check fails. For the drift check, put `mcap_at_signal` (the market cap you saw, in USD) in the buy signal; without it the bot uses `mcap`, `expected_mcap` or the scan's market cap. A refusal lands in `inbox/` as `signal_rejected` with a one-line summary. |
 | `PEAK_SANITY` | true | Throws out junk "missed runner" numbers (over `PEAK_SANITY_MAX_X`, 1000x) so the lessons aren't built on bad data. |
 
-**First run: the setup wizard and your agent ask you.** The wizard asks most of these (see [What the setup wizard asks](#what-the-setup-wizard-asks)); before it trades, your agent should confirm and write the answers into `bots/.env`: paper or live (default **live**), launch rail on or off (default **off**), buy size, daily loss stop, daily buy cap, stop loss / trailing stop, same-token cooldown, loss-streak pause, max open positions, and trading hours plus time zone. Press Enter on any question to keep the default.
+**First run: the setup wizard and your agent ask you.** The wizard asks most of these (see [What the setup wizard asks](#what-the-setup-wizard-asks)); before it trades, confirm and write the answers into `bots/.env`: paper or live (default **paper**; a missing value is also paper), launch rail on or off (default **off**), armed stops (default **off**), owner-position auto-timeout (default **off**), buy size, daily loss stop, daily buy cap, stop loss / trailing stop, same-token cooldown, loss-streak pause, max open positions, and trading hours plus time zone. Press Enter on any question to keep the default. The agent does not turn live mode, the launch rail, armed stops, or the timeout on by itself.
 
-## Self-updates and fixes (policy)
+## Fixes (policy)
 
 Plain English rules for any agent running this drop:
 
-- **Your agent may fix or upgrade its own local copy** when it spots a bug or a better way. Before it changes anything it must: (1) back up the file it is about to edit, (2) test the change in paper mode (`SNIPER_PAPER_MODE=1`) first, and (3) tell you, its owner, what changed and why.
-- **Fixes for everyone go back as suggestions, not pushes.** If the fix would help other users, the agent sends it to the upstream repo as a suggestion through the review queue (`bots/sniper_github.py`). The maintainer's agent reviews it. Nothing is ever auto-merged.
+- **The agent proposes patches. You apply them.** When it spots a bug it writes an owner card in `owner_inbox/` with the evidence, a diff, and a test plan. It does not edit `bots/` (the trading engine) itself.
+- **Fixes for everyone go back as suggestions, not pushes.** If the fix would help other users, send it upstream as a suggestion through the review queue (`bots/sniper_github.py`). Nothing is auto-merged.
 - **Your copy never auto-pulls.** Upstream changes only reach your copy when you choose to update.
-- **Safety caps only loosen with your OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate can be tightened by the agent at any time, but loosened or switched off only after you say yes.
+- **Safety caps only loosen with your OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate can be tightened only after you say yes, and loosened or switched off only after you say yes. The agent does not change them on its own.
 
 ## GitHub basics (new to GitHub? start here)
 

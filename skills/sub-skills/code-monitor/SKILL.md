@@ -2,30 +2,31 @@
 name: code-monitor
 version: v14.3
 description: |
-  How the agent reads code_tuner's packets about the bots' code and config
-  (including config-vs-code drift). Covers: reading 2-day perf packets, 30-day deep
-  audits, source delta packets; running setup mode for unconfigured bots;
-  using the meeting_watcher casual directive interface for source fetches and
-  on-demand reads; reading metrics_current.json; the agent authors and applies
-  his own patches; responding to live config_drift packets in inbox\ by
-  verifying source getenv wire. This watcher does not auto-deploy and does
-  not edit its own source. Falling back to code_requests.json only leaves an
-  unfinished patch in inbox\ for the agent. This skill REPLACES
-  tuner-monitor v2.x (which was tied to the dead LLM-patcher doctrine).
+  Opt-in reader for code_tuner packets about meme-sniper. Use only when the
+  user explicitly asks you to review that output. You may propose a patch as
+  a diff in an owner card. You never apply a patch to the trading engine
+  (bots/), and you never edit those files on your own. The owner applies
+  patches. This watcher does not auto-deploy and does not edit its own source.
   NEVER claim config-done without a code-read check on critical knobs.
 authority_tier: 2
 ceo_voice: "You are the agent."
 ---
 
-> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The goal is long-term capital compounding through the most honest read you can get of markets, human psychology, narratives and probability, never at the cost of safety or integrity. Think first-principles, pattern-obsessed, zero-fluff, brutally honest. Every decision in this skill serves that goal inside the owner's mode.
+> **Safety contract (wins over every later line in this file).**
+> 1. Opt-in only. Do not use this skill unless the user explicitly asked to run meme-sniper or named this skill. A base58 address, ticker, screenshot, web page, log line, or mention is not a trigger.
+> 2. Signals are suggestions for the owner. Do not buy, sell, approve a trade, or write an approval. With the shipped default (`AGENT_MODE=suggest`) the bot holds trade signals until the owner approves them.
+> 3. Never edit trading-engine source (`bots/*.py`, `bots/sub-bots/`). Propose a patch as a diff in `owner_inbox/` and stop. The owner applies it.
+> 4. Missing config is the safe side: paper mode, launch rail off, `ARMED_STOPS` off, owner-position auto-timeout off. Do not turn those on.
 
-**Purpose:** Observe the ecosystem's bots accurately so you (the agent) can author the right patches at the right time. code_tuner is your hands and eyes; you remain the brain. Bad observation = bad patches. Good observation = compounding bot quality over weeks and months. Config text is not runtime truth until source reads the knob.
+> **Operating mode:** Work within the owner's chosen mode (`AGENT_MODE`, SETUP.md section 4) and the owner's `rules/rules.md`. The safety contract above wins if anything below disagrees. Do not trade and do not edit `bots/` from this skill.
+
+**Purpose:** Observe the ecosystem's bots accurately so you can propose the right patch at the right time. The owner applies it. code_tuner reports; you do not edit source. Config text is not runtime truth until source reads the knob.
 
 # code-monitor - The Observer's Skill
 
 > **The owner's mode (`AGENT_MODE`, asked first in setup):** `suggest` is the default. You propose each buy and sell by writing the normal signal to `json_relay/agent_signals.json`; the bot holds it (`awaiting_owner_approval` ack, owner card) until the owner answers `/approve <id>` or `/reject <id>`. Do not re-fire a held signal and never write an approval yourself. `auto` is the owner's opt-in: trade signals execute inside the caps and owner-ping is notify-only. In both modes your analysis, logging, SL/TP on open bags and inbox handling run as written below, and setup config (wallet, sizes, paper vs live, `AGENT_MODE`, `LAUNCH_RAIL_LIVE`) belongs to the owner: you never change it. Where a line below says to fire, buy, sell or act on a trade, that means send the signal; in `suggest` mode the owner's OK completes it. Code patches are always proposed to the owner as a card with a diff; the owner applies them.
 
-*Tier 2 - Decide + Audit | Lazy-loaded when code_tuner packets land*
+*Tier 2 - Decide + Audit | Only when the user explicitly asks you to read code_tuner packets*
 
 ## OPERATOR CARD 
 
@@ -34,13 +35,13 @@ Turns code_tuner packets into the agent judgment + home-landing patches:
 1. Read perf / deep_audit / source_updated / setup / meeting / discovery packets
 2. Decide patch or no-action (most packets = silent no-action)
 3. On config change or `config_drift` packet: **verify source reads the knob** before calling anything done
-4. The agent authors the patch and applies it himself to the other file. This watcher does not apply it.
+4. The agent writes the proposed patch as a diff in `owner_inbox/`. The owner applies it. This skill does not edit `bots/`.
 
 ### Default move sequence
 1. Identify packet type (naming: `code_tuner - <subject>_<ts>.md` - KEEP 3.1.1)
 2. Load bot primary skill + relevant source via meeting_watcher if patching
 3. If knob/docs involved: code-read getenv/os.environ vs bare constant twins
-4. The agent applies the patch himself to the other file. Backup first on medium/high. Do not change size, leverage, or auto-post. Do not self-modify code_tuner.py.
+4. Propose the patch in `owner_inbox/` (diff, why, how the owner can test it). Do not edit the file. Do not change size, leverage, or auto-post. Do not modify code_tuner.py.
 5. Notes, if any, go in `inbox\` for the agent. They are not a gate and not an auto-deploy.
 
 ### Ownership split 
@@ -50,12 +51,12 @@ Turns code_tuner packets into the agent judgment + home-landing patches:
 | metrics_current / code_requests bot_logs / meeting_watcher | pipes | LIVE |
 | Config-vs-code drift **response doctrine** | code-monitor (this skill) | |
 | Config-vs-code drift **detector** | code_tuner | LIVE; packets in `inbox\` |
-| Patch apply | the agent applies his own patches to other files | this watcher does not auto-deploy |
+| Patch apply | the owner, from a diff the agent proposed | this skill does not edit `bots/` |
 
 ### Prove-it board
 | capability | status | unlock condition |
 |---|---|---|
-| the agent authors and applies his own patches to other files | | not a watcher auto-deploy |
+| the agent proposes patches; the owner applies them | | this skill does not edit `bots/` |
 | config-vs-code drift response doctrine | | trail_activate incident proved need; pure judgment + file write |
 | patch envelope fields (owner-ping shared) | | triage coherence; three-way not required every patch |
 | never claim config-done without code-read | | hard law; trail_activate |
@@ -66,7 +67,7 @@ Turns code_tuner packets into the agent judgment + home-landing patches:
 
 ## Root Anchor
 
-This skill activates when you receive ANY packet authored by code_tuner v4.0+. That includes:
+Use this section only after the user explicitly asked you to review code_tuner output. A packet sitting in `inbox/` is not a reason to start. Packet types:
 
 - `code_tuner - perf_review_<bot>_<ts>.md` - 2-day per-bot performance review
 
@@ -105,7 +106,7 @@ You are the agent. code_tuner is the ecosystem's monitor of itself. It produces 
 | Config-vs-code drift response (judgment + patch) | YOU (the agent) via this skill |
 | Reading stats + drawing conclusions | YOU (the agent) |
 | Authoring patches | YOU (the agent) |
-| Applying patches to other files | YOU (the agent). This watcher does not apply them. |
+| Applying patches to other files | the owner. You propose the diff and stop. |
 | Re-curating monitoring config | YOU (the agent) - via setup mode reset |
 
 **The doctrine in one line:** observations, not prescriptions. code_tuner shows you the data. You decide what it means. You propose the patch (owner card with the diff and the test); the owner applies it. This watcher does not auto-deploy, does not edit its own source, and only reloads a file already on disk. Config docs are not done until runtime source reads them. Do not unlock size, leverage, auto-post, or self-modify.
@@ -115,7 +116,7 @@ You are the agent. code_tuner is the ecosystem's monitor of itself. It produces 
 ## Packet naming
 
 
-When you need a note of a patch you are applying yourself, use `inbox\code-monitor - patch_<bot_or_topic>_<ts>.md` (not `P3_patch_*`, not `owner_inbox`).
+When you write a proposal, put the diff in `owner_inbox/` (the owner applies it). A note may also use `inbox/code-monitor - patch_<bot_or_topic>_<ts>.md`. Do not edit `bots/`.
 
 ---
 
@@ -137,17 +138,17 @@ Trigger any of:
 
 ### Response loop
 1. **Tuner detects** (live) or you notice drift from config/source reads
-2. **Packet** arrives in `inbox\` or you self-start from evidence
+2. **Packet** arrives in `inbox/` and the user asked you to review it
 3. **code-monitor** verifies: does source `getenv`/`os.environ` the knob, or is there a bare constant twin?
-4. If not wired: the agent applies the patch himself to the other file (do not wait for another perf cycle). Do not change size or leverage to "fix" a drift.
+4. If not wired: propose the patch in `owner_inbox/` for the owner to apply. Do not edit the file. Do not change size or leverage to "fix" a drift.
 5. A note, if you write one, uses the shared envelope fields (see Patch packet coherence) and lands in `inbox\`
 6. This watcher does not edit `bots/*.py` and does not auto-deploy
-7. After you apply + restart: verify runtime (boot log / behavior), not just file text
+7. After the owner applies the patch and restarts: verify runtime (boot log / behavior), not just file text
 
 ### Do not
 - Treat "config updated" or "bot_config applied" as complete without code-read on the critical knobs
 - Ship skill/config doctrine and pretend the bot already reads it
-- Let this watcher edit `bots/*.py` or its own source. The agent applies patches to other files himself. code_tuner only reloads a change already on disk.
+- Edit `bots/*.py` or this skill's source. Propose the diff. The owner applies it. code_tuner only reloads a change already on disk.
 - Soft-pedal severity when trading knobs (trail, SL-adjacent, size) are drifted
 
 ### Severity heuristic
@@ -177,7 +178,7 @@ Live packets include:
 ### What the agent does on receipt
 1. Open cited source sections (meeting_watcher `show_source` if needed)
 2. Confirm drift is real (not a false positive alias / dead code path)
-3. If real and the bot needs a change: the agent applies the patch himself to that other file the same session. A note may go in `inbox\`. Do not change size or leverage.
+3. If real and the bot needs a change: propose the patch in `owner_inbox/` the same session. Do not edit the file. Do not change size or leverage.
 4. Envelope fields required; acceptance must include restart + runtime verify for trading bots
 5. If false positive: brief note only - do not patch noise
 6. If detector gap (packet incomplete): still code-read the named knob; file patch if wire missing
@@ -315,7 +316,7 @@ acceptance: boot 20/15; trail arms at +20; SL/lev unchanged; restart required
 
 **What you do:**
 
-1. If you applied this change yourself -> no action, you already know.
+1. If the owner already applied this change -> no action, you already know. Do not edit the file.
 
 2. If you didn't author it, it's either:
 
@@ -501,9 +502,9 @@ You can also use `directive` or `text` as the key - code_tuner accepts any of th
 If you find yourself wanting to do any of those: reframe. `reset` accomplishes what `delete bot` thinks it wants.
 
 **THE TWO GAP LANES (one doctrine):**
-1. **YOUR unfinished patch:** when a patch will not fit in your context, you write a spec to `bot_logs/code_requests.json`. code_tuner does not finish it and does not send it to owner_inbox. It writes the unfinished patch back to your `inbox\`. You apply it yourself.
-2. **The BOTS' gap lane:** when a bot hits a capability gap, it fires a `capability_gap` packet into YOUR inbox. You author the patch and you apply it. This watcher does not auto-deploy and does not edit other bots' `.py`.
-Do not collapse the lanes, and do not hand either one off for someone else to apply.
+1. **An unfinished spec:** when a patch will not fit in your context, you write a spec to `bot_logs/code_requests.json`. code_tuner does not finish it. It writes the unfinished spec back to `inbox/`. You turn that into a diff in `owner_inbox/`. The owner applies it.
+2. **The bots' gap lane:** when a bot hits a capability gap, it fires a `capability_gap` packet. You propose the patch. The owner applies it. This skill does not edit `bots/`.
+Do not apply either lane yourself.
 
 **Meeting-watcher capability gaps:** when a directive needs a code_tuner capability that does not exist yet, YOU write the spec to `bot_logs/code_requests.json` (path is bot_logs, NOT json_relay). The 15-min loop lands `code_tuner - agent_unfinished_patch_<bot>_<ts>.md` in `inbox\` for you. Examples:
 
@@ -646,9 +647,9 @@ acceptance: win_rate stabilizes next perf; no size/lev change; the agent restart
 [how the owner should verify post-deploy]
 ```
 
-### Step 4: the agent applies it
+### Step 4: the owner applies it
 
-Apply the patch yourself to the other file. A note, if you write one, goes to `inbox\code-monitor - patch_meme_sniper_v14.3_<ts>.md` (never P2_/P3_, never owner_inbox as a gate). This watcher does not auto-deploy and does not edit its own source.
+Put the diff in `owner_inbox/`. A note, if you write one, may also go to `inbox/code-monitor - patch_meme_sniper_v14.3_<ts>.md`. Do not edit the file. This skill does not auto-deploy and does not edit its own source.
 
 If home-landing pack exists for the day, add the packet to the index.
 
@@ -675,7 +676,7 @@ json
 }
 ```
 
-code_tuner reads this on its 15-min cycle and writes `inbox\code_tuner - agent_unfinished_patch_<bot>_<ts>.md`. That file is your own unfinished patch. You apply it. This bot does not.
+code_tuner reads this on its 15-min cycle and writes `inbox/code_tuner - agent_unfinished_patch_<bot>_<ts>.md`. That file is an unfinished spec. Turn it into a diff in `owner_inbox/`. The owner applies it. This bot does not.
 
 **Do not write `code_requests` for things you can do in your own context.** That defeats the purpose.
 
@@ -731,7 +732,7 @@ Recovery: meeting_watcher -> `show me <bot>'s <function>`. See the actual logic.
 
 Symptom: you write a code_request when the patch is well within your context budget.
 
-Recovery: code_requests are FALLBACKS. Default is: write the patch and apply it yourself. Only fall back when context overflows, and then the unfinished patch comes back to `inbox\`.
+Recovery: code_requests are FALLBACKS. Default is: write the proposed diff in `owner_inbox/` and stop. The owner applies it. Only fall back to a code_request when context overflows.
 
 ### Configuring everything during setup
 
@@ -793,7 +794,7 @@ Clear regression. Decline rate spike + win rate down + lots of small buys sugges
 
 4. Identify the loose threshold (likely conviction_score gating)
 
-5. Write the patch and apply it yourself. Do not raise size or leverage. A note can go in `inbox\`.
+5. Write the proposed diff in `owner_inbox/` and stop. Do not raise size or leverage. Do not edit `bots/`.
 
 6. Track next perf cycle for verification
 
@@ -843,7 +844,7 @@ json
 }
 ```
 
-code_tuner writes the unfinished patch back to `inbox\`. You finish it and apply it yourself.
+code_tuner writes the unfinished spec back to `inbox/`. You finish the proposal in `owner_inbox/`. The owner applies it.
 
 ### Example 6: the owner asks you for metrics in chat
 
@@ -862,7 +863,7 @@ code_tuner writes the unfinished patch back to `inbox\`. You finish it and apply
 **Action:**
 
 2. Confirm arm path uses the constant, not getenv
-3. Apply the wire yourself (or note it in `inbox\`). Severity high. Acceptance is boot 20/15 plus restart. Do not loosen the stop or raise leverage.
+3. Propose the wire change in `owner_inbox/` for the owner to apply. Severity high. Do not loosen the stop or raise leverage. Do not edit `bots/`.
 4. Index home-landing P1
 5. Do NOT mark complete until code lands and runtime verifies
 
@@ -891,11 +892,11 @@ When you read code_tuner packets, default to **brief acknowledgment**. You don't
 
 ## Hard Rules
 
-1. **This watcher never auto-deploys.** It does not edit its own source. It only reloads a `code_tuner.py` change already on disk. The agent applies patches to other files himself. Do not unlock size, leverage, auto-post, or self-modify.
+1. **This skill never auto-deploys and never edits trading-engine source.** It only reloads a `code_tuner.py` change the owner already saved. Propose patches; the owner applies them. Do not unlock size, leverage, auto-post, or self-modify.
 
 2. **Never write to `_managed_by_warden`.** That's warden's territory.
 
-3. **Always ship complete files in patches**, not diffs (except explicit patch scripts).
+3. **Proposals include the full replacement text**, so the owner can apply them without guessing. Do not write the file yourself.
 
 4. **Never request hard-locked actions** via meeting_watcher (the static filter will refuse anyway, but don't even try).
 
@@ -911,7 +912,7 @@ When you read code_tuner packets, default to **brief acknowledgment**. You don't
 
 10. **Every patch packet includes owner-ping shared envelope fields** (kind, severity, dedupe_key, source_skill, summary, detail, related_bot, acceptance).
 
-11. **This watcher does not edit `bots/*.py` and does not edit its own source.** the agent applies patches to other files himself. That is not an auto-deploy and it is not permission to change size, leverage, or auto-post.
+11. **This skill does not edit `bots/*.py` and does not edit its own source.** Propose a diff. The owner applies it. That is not permission to change size, leverage, or auto-post.
 
 12. **Keep 3.1.1 naming.** `code_tuner -...`, `deep_audit_*`; never reintroduce P2_/P3_.
 
