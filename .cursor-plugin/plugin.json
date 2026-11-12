@@ -1,0 +1,34 @@
+{
+  "name": "meme-sniper-cursor",
+  "version": "1.0.17",
+  "description": "Open-source Solana meme-token research and trading bot. Paper mode and suggest mode are the defaults when their env vars are missing: nothing is signed, and buys and sells wait for the owner's approval. Armed stops, the owner-position timeout, and the launch rail ship off. Skills are opt-in playbooks: they suggest, they do not trade because an address appeared, and they do not edit the trading engine. The owner applies patches. Cursor Directory edition.",
+  "author": {
+    "name": "Bentayga Empire LLC",
+    "url": "https://github.com/BadmonLano"
+  },
+  "homepage": "https://github.com/BadmonLano/meme-sniper-cursor",
+  "repository": "https://github.com/BadmonLano/meme-sniper-cursor",
+  "license": "MIT",
+  "keywords": [
+    "meme sniper",
+    "meme-sniper",
+    "solana meme sniper",
+    "solana trading bot",
+    "pump.fun sniper"
+  ],
+  "logo": "assets/meme_sniper_logo_square.png",
+  "skills": [
+    "skills/meme-hunter",
+    "skills/ca-intel",
+    "skills/forensics",
+    "skills/gork-lore",
+    "skills/sub-skills/autoagent",
+    "skills/sub-skills/code-monitor",
+    "skills/sub-skills/learnings-summarizer",
+    "skills/sub-skills/morning-brief",
+    "skills/sub-skills/owner-ping",
+    "skills/sub-skills/warden",
+    "skills/sub-skills/x"
+  ],
+  "id": "meme-sniper-cursor"
+}

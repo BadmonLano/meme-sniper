@@ -1,0 +1,6 @@
+{
+  "our_owner": "",
+  "suggest_daily_cap": 3,
+  "_note": "our_owner = YOUR GitHub user/org for publish plans (blank = placeholder <owner>). Add private folders to denylist_paths.",
+  "repo_description": "Solana meme sniper run by your SI agent: scans, rug-checks, buys and sells, plus a gated launch rail with GitHub repo attach. Live trading with safety caps, launch rail off by default. Python, MIT."
+}
