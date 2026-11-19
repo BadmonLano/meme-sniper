@@ -7,7 +7,7 @@ A nightly self-eval for your agent. One question: **what did I learn today that 
 1. **Section 8 (raw):** during the day the agent and bots append short entries between the two append-window markers in `LEARNINGS.md` (`### [ISO] | [TYPE] | [SOURCE]` + 1-3 lines).
 2. **Nightly distill:** the self-eval run archives the raw window, takes a dual backup, then distills each entry into Sections 1-7 (lane lessons, patterns, tooling, open items) and empties Section 8.
 3. **Candidates to Section 7:** anything that looks like a hard rule, a contradiction, or doctrine drift goes to Section 7 as a candidate or P1 item.
-4. **The agent promotes to Section 2:** the agent adds or retires Critical Rules itself when a candidate has repeat evidence, logs each change (rule, reason, evidence) to `bot_logs/learnings_summarizer_history.jsonl` and in Section 7 "Recently Resolved", and sends a notify-only owner-ping.
+4. **Proposals for Section 2:** a candidate with repeat evidence is noted for the owner, with the rule, reason, and evidence. The note does not authorize a trade and does not edit `bots/`. A gate change is a diff in `owner_inbox/`.
 
 Recurring lessons that keep showing up but never get promoted are tracked as coverage gaps, so the leak is visible instead of silently restated.
 

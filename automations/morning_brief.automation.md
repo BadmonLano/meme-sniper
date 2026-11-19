@@ -1,5 +1,5 @@
 # Morning brief
-- Trigger: set by the user or agent; also on demand
+- Trigger: only when the owner asks, or after the owner explicitly saves a schedule. Suggest-only. Do not trade. Never edit `bots/`.
 - Lane source: none (reads logs and `inbox_results/done/` only, never drains the inbox)
 - Reads: `skills/sub-skills/morning-brief/SKILL.md` and its source table
 - Writes: owner-ping (the brief), `bot_logs/morning_briefs/YYYYMMDD.md`, `bot_logs/morning_brief_lock.json`, `bot_logs/agent_thesis.json` (append), `bot_logs/inbox_cron_audit.log`

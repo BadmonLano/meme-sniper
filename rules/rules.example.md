@@ -1,6 +1,6 @@
 # Owner trading rules (example)
 
-Copy this file to `rules/rules.md` (or let the setup wizard write it) and edit it. The agent reads `rules/rules.md` before every trade decision. These rules override skill defaults. The bot's hard safety gates (wallet floor, rug checks, size caps) still apply: a rule can make the agent stricter, never looser. Leave a section empty if it does not apply.
+Copy this file to `rules/rules.md` (or let the setup wizard write it) and edit it. The agent reads `rules/rules.md` before a suggestion, and only after you invoked the sniper. These rules can be stricter than skill notes. The bot's hard safety gates (wallet floor, rug checks, size caps) still apply. Copying an example does not approve a trade. No trade without fresh owner approval. Do not edit `bots/`. Patches are diffs in `owner_inbox/` for the owner. Leave a section empty if it does not apply.
 
 ## Max size
 <!-- Largest buy in SOL, or % of wallet per trade (e.g. 0.25 SOL / 10%) -->

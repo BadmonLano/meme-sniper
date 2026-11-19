@@ -4,17 +4,17 @@
 
 > **Ask these first, in this order (wizard menu 2 does the same):**
 > 1. **Agent autonomy (`AGENT_MODE`).** `suggest` (default, preselected): the agent proposes every buy and sell and the bot waits for the owner's `/approve <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto`: **warning** - the agent buys and sells on its own inside the caps with no per-trade sign-off. The wizard makes the owner type `AUTO`; `setup.json` needs `"AGENT_CONFIRM_AUTO": "AUTO"`. Never pick auto for the owner.
-> 2. **Active hours (`ACTIVE_HOURS` + `ACTIVE_TZ`).** Default `00:00-23:59` (always on), `America/New_York`. The loop runs 24/7 either way; the window only gates new buys and new cards, exits always run. See "Always on" below.
+> 2. **Active hours (`ACTIVE_HOURS` + `ACTIVE_TZ`).** Default `00:00-23:59`, `America/New_York`. The process the owner started keeps its cadence either way. The window only gates new buys and new cards. A sell still needs fresh owner approval unless the owner set `ARMED_STOPS=1` (shipped off). See "Cadence and active hours" below.
 > 3. **Paper or live (`SNIPER_PAPER_MODE`).** Paper is the default for new setups (`bots/.env.example` ships `SNIPER_PAPER_MODE=1`): every trade is simulated at real quotes, nothing is signed or sent, and no wallet private key is needed. **Live keys are opt-in**: only after the owner chooses live does the wizard ask for the burner wallet's private key, with a warning, and leaving paper needs `LIVE` typed (section 4.2). Token launches stay off-chain (`LAUNCH_RAIL_LIVE=0`) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before going live.
 
-> **The owner runs setup once by hand.** Start `python bots/sniper.py` and use the setup wizard (menu 2) and **Sign in to X** (menu 3) at least once: X sign-in needs a human at the browser window (2FA, captcha). After that, you (the agent) can fill or change the rest through `setup.json` or the Settings screen. If `bots/.env` is missing, the wizard, `setup.json`, the Settings screen and token refresh all create it from `bots/.env.example`.
+> **The owner runs setup once by hand.** Start `python bots/sniper.py` and use the setup wizard (menu 2) and **Sign in to X** (menu 3) at least once: X sign-in needs a human at the browser window (2FA, captcha). After that, non-secret blanks can be filled through `setup.json` or the Settings screen. Do not turn paper mode off, do not set `AGENT_MODE` to auto, and do not turn the launch rail or armed stops on. Those stay owner actions. If `bots/.env` is missing, the wizard, `setup.json`, the Settings screen and token refresh all create it from `bots/.env.example`.
 
-## Always on: loop, cadence and active hours
+## Cadence and active hours
 
-Meme Sniper is a **loop meant to run continuously**: the bot runs 24/7 on its cadence and your agent runs the lanes in `automations/` on theirs. It is not a one-shot script.
+The trading process keeps its cadence only after the owner starts it. Skills do not start it and do not send orders. Lane prompts in `automations/` run only when the owner explicitly saves them. Suggest-only: no trade without fresh owner approval, and never edit `bots/`.
 
-- **Keep it running:** use an always-on hosted agent (best), or auto-start on boot on your own PC: Windows Task Scheduler "At log on" running `python bots/sniper.py --start`, macOS a `launchd` agent, Linux a `systemd --user` service or `@reboot` cron. Have the agent's lane jobs saved as recurring automations so they survive restarts.
-- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps sells, stop-losses, armed SL/TP, the stuck-bag watchdog and monitoring running, and resumes on its own when the window opens. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
+- **Owner setup, not a skill:** Windows Task Scheduler "At log on", a macOS `launchd` agent, or a Linux `systemd --user` service can start `python bots/sniper.py --start` if the owner wants that. A skill does not turn that on.
+- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59`; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the process idles on new buys and new inbox cards (declined with reason `outside_active_hours`) and never cuts off an order mid-send. Monitoring keeps running and resumes when the window opens. A sell still needs fresh owner approval unless the owner set `ARMED_STOPS=1` (shipped off). The stuck-bag watchdog only retries a sell that already went out. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
 - **Cadence (tunable):** lane cadences `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadences keep their existing settings (`AGENT_INBOX_CADENCE_S`, `SNIPER_LAUNCH_POLL_S`, `WALLET_POLL_INTERVAL_S`, `SNIPER_WATCH_INTERVAL_S`).
 - **Check it:** `python bots/active_hours.py` prints whether new entries are allowed right now and each lane's cadence (no secrets).
 - The setup wizard asks active hours right after the agent-autonomy question (`AGENT_MODE`).
@@ -25,7 +25,7 @@ Have these ready before the first start. Every key goes in `bots/.env` (copy `bo
 
 - **A computer that stays on:** Windows, macOS or Linux, about 5 GB free disk. If it sleeps, trading pauses.
 - **Python 3.12+** and **git**.
-- **An AI agent** that can read files, run Python and keep a loop going (hosted or local; section 2).
+- **An AI agent** that can read files and run Python (hosted or local; section 2). Skills stay opt-in and do not start trading.
 - **A new burner Solana wallet** (`HOT_WALLET_PRIVATE_KEY`, `HOT_WALLET_ADDRESS`) funded only with what you can lose. Make it fresh in any Solana wallet app and export the private key. Never use a main wallet.
 - **A Solana RPC** (`RPC_URL`, plus `HELIUS_API_KEY` if you use Helius): sign up at helius.dev, or use any Solana RPC provider. Routing: trades and wallet reads go to your RPC/Helius first; every other read is **free-first** (`RPC_FREE_URL`, default the public mainnet endpoint, with Helius via `HELIUS_API_KEY` as the fallback; turn off with `RPC_FREE_TIER=false`). So the console keeps showing chain reads even when `RPC_URL` is wrong; check the wallet line at boot to confirm your own RPC works. On a free Helius tier, 429 "too many requests" lines in the console are normal back-off, not errors.
 - **One brain:** a Grok key from console.x.ai (recommended), or OpenAI (platform.openai.com), Anthropic (console.anthropic.com), any OpenAI-compatible endpoint, or Ollama (ollama.com) running locally for free.
@@ -360,7 +360,7 @@ Bags already in the wallet the first time this runs are not asked about. Stablec
 
 ### 6.7 Clone runners
 
-The canonical (OG) pick per ticker does not change. A copycat token (a clone) is normally folded into the canonical's card or suppressed. A clone becomes a **runner** when it clearly outpaces the canonical: volume at least `RUNNER_VOL_RATIO` times the canonical's (default 3; 1h volume when both have it, else 24h) and more liquidity, held for `RUNNER_SUSTAIN_MIN` minutes (default 60), with a clean rug check and live socials (bullish or mixed). A runner gets its own inbox card marked "Clone Running" with `context.runner` (canonical mint, volume and liquidity ratios, since when). It still passes every normal filter and safety rule; there is no buy bypass and the agent decides. Turn it off with `CLONE_RUNNER_ENABLED=off`.
+The canonical (OG) pick per ticker does not change. A copycat token (a clone) is normally folded into the canonical's card or suppressed. A clone becomes a **runner** when it clearly outpaces the canonical: volume at least `RUNNER_VOL_RATIO` times the canonical's (default 3; 1h volume when both have it, else 24h) and more liquidity, held for `RUNNER_SUSTAIN_MIN` minutes (default 60), with a clean rug check and live socials (bullish or mixed). A runner gets its own inbox card marked "Clone Running" with `context.runner` (canonical mint, volume and liquidity ratios, since when). It still passes every normal filter and safety rule. A suggestion still needs fresh owner approval. Turn it off with `CLONE_RUNNER_ENABLED=off`.
 
 Promotions and outcomes (market cap at 6h and 24h; a hit is +50% at 24h) are logged to `bot_logs/clone_runners.jsonl`, the hit rate is summarised in `bot_logs/clone_runner_review.json`, and traded runners are tagged `clone_runner` in the autopsy. Sustain state lives in `bot_logs/clone_runner_state.json`.
 
@@ -372,14 +372,13 @@ Ask the owner for personal trading rules: max size, no-trade hours, banned token
 - Owner rules override skill defaults. The hard safety gates (wallet floor, rug checks, size caps, concentration) still apply; a rule can make you stricter than a gate, never looser.
 - When the owner changes a rule, record it in `learnings/LEARNINGS.md` like any skill change.
 
-## 8. Tune the skills to the owner (before the first trade)
+## 8. Skills stay opt-in
 
-The skills ship as one tested public version (v14.3), tuned for a cautious, newer owner: small sizes, tight leashes, few holds.
+No skill loads unless the owner explicitly invokes the sniper or names that skill. Do not read them in as a standing playbook. `skills/README.md` lists them.
 
-1. Read `skills/README.md`, then every skill it lists.
-2. Ask the owner about their experience and risk: how long they have traded memes, wallet size, how much drawdown they can sit through, flip or hold bias, how hands-on they want to be.
-3. Adjust the skills to fit. A newer owner keeps the defaults. An experienced owner can widen sizes (inside the hard gates), loosen hold patience bands, change SL/TP defaults and the peel sizes of the **Layoo ratchet** (meme-hunter's default profit-taking loop: take profit in slices as a token climbs and raise the stop under it). Never touch the hard gates (wallet floor, rug checks, load-bearing hold criteria).
-4. Record every change: append a dated entry to `learnings/LEARNINGS.md` (what changed, from what, why, for which owner profile) and keep a copy of the original skill next to it, so results can be graded against the defaults later.
+1. Suggest-only. Patches go as diffs to `owner_inbox/` for the owner. No trade without fresh owner approval. Never edit `bots/`.
+2. Sizes, stops, and hours are owner settings. Do not change them, and do not relax a hard gate (wallet floor, rug checks, size caps).
+3. If the owner wants a skill edit, write the diff in `owner_inbox/` and stop. Record the owner's decision in `learnings/LEARNINGS.md` only after they apply it.
 
 ## 9. Connect X (browser scraper and x_intel)
 

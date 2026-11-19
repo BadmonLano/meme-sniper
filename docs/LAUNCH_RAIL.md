@@ -1,11 +1,11 @@
 # Sniper Launch Rail - mini launchpad (Pump.fun via PumpPortal)
 
-> "An agent ships something real and useful? SNIPER will attach a repo, and mint a token around it."
+> The owner can mint a token around a public repo. The rail ships off. Suggest-only: do not write a live launch, do not sign, and do not turn the switches on. A launch idea is a note in `owner_inbox/` for the owner. No launch without fresh owner approval. Never edit `bots/`.
 
 Module: `bots/sub-bots/launch_rail.py` (ships **off**: `LAUNCH_RAIL_ENABLED` defaults false and `LAUNCH_RAIL_LIVE` defaults to `0`, dry runs until both are on). A missing `SNIPER_PAPER_MODE` is paper, and paper mode never sends. `meme_sniper.py` has one loop, `launch_rail_relay_loop`, registered as `SupervisedTask("launch_rail_relay")` right after `relay_janitor`. It polls the relay every 5 s, and only while LAUNCH_RAIL_ENABLED is on. You can call it from the CLI or from code with `import launch_rail; launch_rail.launch(req, ...)` / `launch_rail.check_repo(url)`.
 
 ## What it does
-1. **Request**: a JSON file passed with `--request`, or (how agents do it) one file per request in `json_relay/launch_requests/<id>.json`, which the engine's relay loop picks up (see Agent relay below). The legacy folder `bot_logs/launch_requests/` is only read by `scan-requests` and is always dry-run.
+1. **Request**: a JSON file passed with `--request`, or one file per owner-approved request in `json_relay/launch_requests/<id>.json`, which the engine's relay picks up (see Agent relay below). The agent does not file a live request. The legacy folder `bot_logs/launch_requests/` is only read by `scan-requests` and is dry-run only.
 2. **Repo gate ("real and useful")**: uses the GitHub API to check that the repo is public, not archived, original (a fork must be at least 3 commits ahead of its parent), has a README of 200+ bytes, has 3+ code files, and was pushed within 90 days. The score runs 0–100. It passes at 60 or more with no hard FAIL. A failure blocks the launch unless you pass `--force`.
 3. **Metadata**: name/symbol/description/twitter/telegram/website. The website defaults to the repo URL, and the description gets "Built on: <repo>" added. The upload goes to IPFS via **Pinata** (`PINATA_JWT`), because the PumpPortal docs (checked 2026-10-13) say `pump.fun/api/ipfs` is no longer supported. The legacy endpoint is still available as `--ipfs pumpfun`. `--no-upload` mocks the upload.
 4. **Create**: `POST https://pumpportal.fun/api/trade-local` with `{publicKey, action:"create", tokenMetadata{name,symbol,uri}, mint:<new keypair pubkey>, denominatedInSol:"true", amount:<dev buy>, slippage, priorityFee, pool:"pump"}`. The rail signs the returned transaction with the **mint keypair and the creator wallet** (solders), runs `simulateTransaction`, and sends only when live, through `RPC_URL` (or Helius via `HELIUS_API_KEY`, falling back to the public mainnet RPC).
@@ -13,7 +13,7 @@ Module: `bots/sub-bots/launch_rail.py` (ships **off**: `LAUNCH_RAIL_ENABLED` def
 6. **Creator fees**: `claim-fees` uses PumpPortal `collectCreatorFee` (pump claims everything at once). It ships live, with the same gates as a launch.
 7. **Log**: every attempt is appended to `bot_logs/launch_rail_log.jsonl`.
 
-## Agent relay (how agents launch)
+## Agent relay (owner-approved requests only)
 Agents write JSON into the bot's `json_relay/` (same convention as `agent_signals.json`, with paths built from `_BASE / "json_relay"`):
 - **Requests:** `json_relay/launch_requests.json` (one object or `{"requests":[...]}`), or one file per request in `json_relay/launch_requests/<id>.json` (preferred).
 - **Results:** `json_relay/launch_results.json` → `{"results": {"<id>": {...}}}` with status, mode, why_not_live, mint, pump_url, signature, solscan, metadata_uri, cost_estimate_sol, repo_score/reasons, simulation, creator (pubkey/balance), and metadata. Full detail is in `bot_logs/launch_rail_log.jsonl`.
@@ -65,15 +65,15 @@ set LAUNCH_RAIL_LIVE=1
 Then `python bots/sub-bots/launch_rail.py launch --request my_request.json` sends for real (add `--dry-run` to stay off-chain), and `claim-fees` without `--dry-run` claims live.
 
 ## Safety gates
-- Ships off-chain: live needs **LAUNCH_RAIL_ENABLED on + LAUNCH_RAIL_LIVE=1**, and LAUNCH_RAIL_LIVE ships 0 (unset counts as 0). The agent is the decider; there is no human confirm step. If either is off, or the request says dry_run, it stays a dry-run and lists the blockers.
+- Ships off-chain: live needs **LAUNCH_RAIL_ENABLED on + LAUNCH_RAIL_LIVE=1**, and LAUNCH_RAIL_LIVE ships 0 (unset counts as 0). The agent does not decide a live send and does not flip either switch. If either is off, paper mode is not explicitly off, or the request says dry_run, it stays a dry-run and lists the blockers. A launch still needs fresh owner approval.
 - Dev buy cap (first one set wins): `--max-dev-buy`, then env `LAUNCH_MAX_DEV_BUY_SOL`, then config `max_dev_buy_sol`, then 0.5. Anything over the cap is blocked.
 - The repo gate blocks a failing repo unless `--force`.
 - A throwaway creator can never go live. The legacy `bot_logs/launch_requests/` folder (`scan-requests`) can never go live. The json_relay can, under the config above.
 - Secrets are read by name only: `LAUNCH_WALLET_PRIVATE_KEY` (override), else `HOT_WALLET_PRIVATE_KEY`, else `PRIVATE_KEY`. Also `PINATA_JWT` (or `pinata_secret_token`), `RPC_URL` / `HELIUS_API_KEY`, optionally `GITHUB_TOKEN` (rate limits), and `TELEGRAM_TOKEN`/`TELEGRAM_CHAT_ID` (hook only). Values are never printed. The RPC URL is not logged.
 - The mint keypair is saved only on a live run, under the git-ignored `bot_logs/launch_keys/`.
 
-## Live launch checklist (the agent decides)
-The agent fills in:
+## Live launch checklist (owner only)
+The owner fills in:
 1. Token **name** (max 32) and **ticker** (max 10)
 2. **Description**
 3. **Image** (path or URL; square PNG recommended)
@@ -83,10 +83,10 @@ The agent fills in:
 7. Owner-ping after the send (notify-only: mint, pump URL, signature)
 
 Setup:
-- `bots/.env` with `LAUNCH_WALLET_PRIVATE_KEY` (the agent's wallet) or `HOT_WALLET_PRIVATE_KEY`, plus `RPC_URL`/`HELIUS_API_KEY` and `PINATA_JWT` (free Pinata account, JWT).
+- `bots/.env` with `LAUNCH_WALLET_PRIVATE_KEY` (the owner's burner) or `HOT_WALLET_PRIVATE_KEY`, plus `RPC_URL`/`HELIUS_API_KEY` and `PINATA_JWT` (free Pinata account, JWT).
 - Wallet balance ≥ dev buy + ~0.03 SOL.
 - Run a dry-run with the real wallet first and check that the simulation succeeds.
-- To go live, the owner sets LAUNCH_RAIL_ENABLED=1 and LAUNCH_RAIL_LIVE=1 at setup. After that the agent runs launches without `--confirm`.
+- To go live, the owner sets LAUNCH_RAIL_ENABLED=1 and LAUNCH_RAIL_LIVE=1. The agent does not run launches and does not sign.
 - Afterwards: back up `bot_logs/launch_keys/<mint>.json`, check the pump.fun page, and decide on the hooks.
 
 ## Own launches (after a LIVE launch)

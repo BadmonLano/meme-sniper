@@ -2,6 +2,15 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.18 (2026-11-19): skills are opt-in, short, and suggest-only
+
+Directory review follow-up. The trading engine, its safe defaults, and the MIT license are unchanged.
+
+- **No skill is core.** `skills/README.md` no longer marks meme-hunter as always loaded. Every `SKILL.md` sets `disable-model-invocation: true` and `alwaysApply: false`. Both plugin manifests set `alwaysApply` false. A skill is used only when the user explicitly invokes the sniper or names that skill.
+- **One rule in the playbooks.** Suggest-only. Patches are diffs in `owner_inbox/` for the owner. No trade without fresh owner approval. Never edit `bots/`. Removed the contradictory lines that told an agent to patch the engine, relax gates, chase 1-2 buys a day, keep a trading loop, send orders, sign, or launch.
+- **Skills are short.** The old playbooks (about 525KB, mostly duplicated doctrine) are gone. What ships is the contract plus a short opt-in note per skill.
+- **Test:** `bots/tests/test_skill_opt_in.py` fails if those phrases or always-on markers return, or if `skills/` is 40KB or larger.
+
 ## v1.0.17 (2026-11-12): safe defaults, no agent hijack, no unapproved exits
 
 Directory review follow-up. The bot's features and the MIT license are unchanged. What changed is the default and the instructions an agent is allowed to follow.
