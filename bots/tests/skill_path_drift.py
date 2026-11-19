@@ -6,24 +6,10 @@ from pathlib import Path
 PAT = re.compile(r"(?<![\w.])(json_relay|bot_logs|inbox_results|owner_inbox|inbox)[/\\]([A-Za-z0-9_.\-/\\]+)")
 SKIP_CHARS = set("<>*{}")
 
-# Files the AGENT owns (the skill tells the agent to read/write them; no bot code touches them).
-# A path not in the code and not listed here is drift and fails the smoke.
-AGENT_OWNED = {
-    "bot_logs/agent_pattern_discoveries.json": "autoagent: the agent's named discoveries",
-    "bot_logs/agent_training_dataset.json": "autoagent: agent-built dataset",
-    "bot_logs/autopsy_skill_history.jsonl": "forensics: skill-side autopsy history",
-    "bot_logs/ca_intel_coverage_gaps.json": "ca-intel: agent feed-forward gaps",
-    "bot_logs/daily_thesis.json": "autoagent: agent writes the daily thesis",
-    "bot_logs/ecosystem_audit_history.json": "autoagent: agent audit report",
-    "bot_logs/filter_patches.json": "forensics: patch audit the agent writes",
-    "bot_logs/learnings_coverage_gaps.json": "learnings-summarizer (agent-run)",
-    "bot_logs/learnings_distill_cron_state.json": "learnings-summarizer (agent-run)",
-    "bot_logs/learnings_summarizer_heartbeat.json": "learnings-summarizer (agent-run)",
-    "bot_logs/miss_analyst_config.json": "forensics: agent-tuned config",
-    "bot_logs/miss_reports.json": "forensics: agent miss reports",
-    "bot_logs/pattern_library.json": "autoagent: legacy agent library",
-    "bot_logs/source_accuracy.json": "autoagent: agent-maintained accuracy table",
-}
+# Files a skill tells the agent to read or write that no bot code touches.
+# v1.0.18 skills name no agent-private paths. A path not in the code and not
+# listed here is drift and fails the smoke. Drop a key when skills stop naming it.
+AGENT_OWNED = {}
 
 def refs(root: Path) -> dict:
     out = {}

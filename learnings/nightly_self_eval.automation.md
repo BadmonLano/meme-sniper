@@ -1,6 +1,7 @@
 # Nightly self-eval
 - Name: {AGENT_NAME} nightly self-eval (learnings distill)
-- Trigger: set by user (nightly suggested)
+- Trigger: only after the owner explicitly saves it (nightly is a suggestion)
+- Rule: suggest-only. No trade without fresh owner approval. Never edit `bots/`. A gate or code change is a diff in `owner_inbox/` for the owner.
 - Writes: learnings/LEARNINGS.md (atomic), archive + dual backups, state file, history.jsonl, heartbeat, user notification only when it matters
 
 ---
@@ -14,7 +15,7 @@ Load the learnings-summarizer skill (skills/sub-skills/learnings-summarizer) and
 - Section 8 entries arrive through `bots/sub-bots/learnings_writer.py` (bots, the overseer's recurring patterns, and agent requests dropped in `json_relay/learnings/*.json`). Its log is `bot_logs/learnings_writer.jsonl` (one line per append: type, source, size) and its health is `bot_logs/learnings_writer_heartbeat.json`. Read the log for today's sources, and if the heartbeat is older than 1 hour, note the writer as down in Section 7. Write your own day entries with `python bots/sub-bots/learnings_writer.py --append "..." --type self_eval --source agent`, never by hand-editing above the markers.
 - Memory search (optional, only if your agent has one): 2-4 focused queries on a full night, 1-2 on quiet. No broad sweeps. If it is unavailable, log sqlite_xref: unavailable and continue.
 - learnings_inbox only if the directory exists. Missing = log and continue.
-- Recurring-unpromoted / coverage gaps from bot_logs/learnings_coverage_gaps.json. Same edge un-promoted again is a leak. Promote it to Section 2 yourself when the evidence repeats, and log what changed (never silently).
+- Recurring-unpromoted / coverage gaps from bot_logs/learnings_coverage_gaps.json. Same edge un-promoted again is a leak. Note it for the owner. Do not turn it into a gate change or a trade.
 - History line to bot_logs/learnings_summarizer_history.jsonl is mandatory every run. Write fail = notify {USER} with dedupe_key distill_cron_history_write_failed. Never quiet-exit that.
 
 Lens on every real input:

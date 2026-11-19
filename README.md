@@ -10,12 +10,12 @@ No hype, no ticker. Just the code.
 
 ---
 
-## Always on: loop, cadence and active hours
+## Cadence and active hours
 
-Meme Sniper is a **loop meant to run continuously**: the bot runs 24/7 on its cadence and your agent runs the lanes in `automations/` on theirs. It is not a one-shot script.
+The trading process keeps its cadence only after the owner starts it (`python bots/sniper.py --start`). Skills do not start it and do not send orders. Lane prompts in `automations/` run only when the owner explicitly saves them. Suggest-only: no trade without fresh owner approval, and never edit `bots/`.
 
-- **Keep it running:** use an always-on hosted agent (best), or auto-start on boot on your own PC: Windows Task Scheduler "At log on" running `python bots/sniper.py --start`, macOS a `launchd` agent, Linux a `systemd --user` service or `@reboot` cron. Have the agent's lane jobs saved as recurring automations so they survive restarts.
-- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59` = always on; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the loop idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps monitoring running, and resumes on its own when the window opens. A sell still needs your approval unless you set `ARMED_STOPS=1`. The stuck-bag watchdog only retries a sell that already went out. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
+- **Owner setup, not a skill:** Windows Task Scheduler "At log on", a macOS `launchd` agent, or a Linux `systemd --user` service can start `python bots/sniper.py --start` if the owner wants that. A skill does not turn that on.
+- **Active hours (tunable, `bots/.env`):** `ACTIVE_HOURS` (default `00:00-23:59`; e.g. `09:00-23:00`, overnight `22:00-02:00`, several windows `09:00-12:00,18:00-23:00`), `ACTIVE_TZ` (default `America/New_York`), `ACTIVE_DAYS` (blank = every day; e.g. `mon-fri`). Outside the window the process idles on new buys and new inbox cards (declined with reason `outside_active_hours`), never cuts off an order mid-send, keeps monitoring running, and resumes when the window opens. A sell still needs your approval unless you set `ARMED_STOPS=1`. The stuck-bag watchdog only retries a sell that already went out. `TRADING_HOURS` / `TRADING_TZ` still work and apply on top (both windows must allow a buy).
 - **Cadence (tunable):** lane cadences `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadences keep their existing settings (`AGENT_INBOX_CADENCE_S`, `SNIPER_LAUNCH_POLL_S`, `WALLET_POLL_INTERVAL_S`, `SNIPER_WATCH_INTERVAL_S`).
 - **Check it:** `python bots/active_hours.py` prints whether new entries are allowed right now and each lane's cadence (no secrets).
 - The setup wizard asks active hours right after the agent-autonomy question (`AGENT_MODE`).
@@ -26,7 +26,7 @@ Sniper can be run by Grok Bot, Muse, or an agent from any of the larger SI compa
 
 ## Contents
 
-- [Always on: loop, cadence and active hours](#always-on-loop-cadence-and-active-hours)
+- [Cadence and active hours](#cadence-and-active-hours)
 - [Works with](#works-with)
 - [Glossary](#glossary)
 - [Paper quick start (dry run)](#paper-quick-start-dry-run)
@@ -58,9 +58,9 @@ Four pieces that work together:
 3. **GitHub sign-in and repo attach** (`bots/sniper_github.py`). Sign in once with GitHub's device code, list your repos, and attach one to a launch.
 4. **Contribution review and uploader** (also `bots/sniper_github.py`). Scans pull requests and suggestion files from other people, queues them for **you** to review, and packages and publishes your own uploads and releases. Nothing auto-merges.
 
-Around those: an SI "brain" (Grok, OpenAI, Claude, any OpenAI-compatible endpoint, or local Ollama), alerts to your phone, a console dashboard, nightly self-review, and skill files in `skills/` that teach your agent how to trade.
+Around those: an SI "brain" (Grok, OpenAI, Claude, any OpenAI-compatible endpoint, or local Ollama), alerts to your phone, a console dashboard, nightly self-review, and opt-in skill files in `skills/`. They suggest when you invoke them. They do not trade, sign, or edit the engine.
 
-**Who it's for:** people who run an SI agent that can read files, run Python and keep a loop going, and who understand Solana memecoins and their risks.
+**Who it's for:** people who run an SI agent that can read files and run Python, and who understand Solana memecoins and their risks. Skills stay opt-in.
 
 ## Glossary
 
@@ -74,7 +74,7 @@ Around those: an SI "brain" (Grok, OpenAI, Claude, any OpenAI-compatible endpoin
 - **Scale-in:** a small first buy, then the rest only if liquidity and price hold.
 - **Launch rail:** the gated path that launches your own token with a GitHub repo attached. Off by default.
 - **Paper mode:** `SNIPER_PAPER_MODE=1`, fills simulated at real quotes, nothing signed or sent.
-- **Inbox lanes:** the recurring agent loops in `automations/` that drain `inbox/` into `inbox_results/`.
+- **Inbox lanes:** owner-scheduled prompts in `automations/` that read `inbox/` into `inbox_results/`. They do not start themselves and they do not send a trade.
 
 ## Paper quick start (dry run)
 
@@ -143,7 +143,7 @@ Plain English rules for any agent running this drop:
 - **The agent proposes patches. You apply them.** When it spots a bug it writes an owner card in `owner_inbox/` with the evidence, a diff, and a test plan. It does not edit `bots/` (the trading engine) itself.
 - **Fixes for everyone go back as suggestions, not pushes.** If the fix would help other users, send it upstream as a suggestion through the review queue (`bots/sniper_github.py`). Nothing is auto-merged.
 - **Your copy never auto-pulls.** Upstream changes only reach your copy when you choose to update.
-- **Safety caps only loosen with your OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate can be tightened only after you say yes, and loosened or switched off only after you say yes. The agent does not change them on its own.
+- **Safety caps do not move without your OK.** The daily loss stop, daily buy cap, fail-closed rug checks, mint/freeze authority gate and max 5-minute pump gate stay as you set them. The agent does not change them. A proposal is a diff in `owner_inbox/`.
 
 ## GitHub basics (new to GitHub? start here)
 
@@ -169,8 +169,8 @@ Plain English rules for any agent running this drop:
 | `bots/chains/` | Chain plug-ins. Solana is the only live one. |
 | `bots/.env.example` | Every setting, blank, with comments. Copy to `bots/.env`. |
 | `bots/examples/` | Sample launch requests (dry-run test included). |
-| `skills/` | Skill files your agent reads to make decisions. |
-| `automations/` | Inbox-check prompts for your agent to schedule: sniper lane, warden lane, misc lane, morning brief (see Quick start step 8). |
+| `skills/` | Opt-in skill files. They load only when you invoke the sniper or name the skill. Suggestions only. |
+| `automations/` | Inbox prompts you can schedule: sniper lane, warden lane, misc lane, morning brief (see Quick start step 8). They do not start themselves. |
 | `rules/` | Your personal trading rules (`rules.example.md` to start). |
 | `learnings/` | Lessons the nightly review writes down. |
 | `inbox/` | Agent inbox: new cards, rejected signals, reviews, for your SI agent to read. |
@@ -341,7 +341,7 @@ Sniper and your agent talk through plain files, so any agent that can read and w
 - **You → agent:** text files in `owner_commands/`.
 - Each request is processed once (tracked in `bot_logs/`), so nothing fires twice.
 
-The `automations/` files are ready-made loops telling your agent how often to read these. Details in SETUP.md sections 6 and 11.
+The `automations/` files are prompts you can schedule. They do not start themselves. Details in SETUP.md sections 6 and 11.
 
 ## Contributing
 

@@ -18,5 +18,5 @@ For non-sensitive bugs, a normal GitHub issue is fine.
 - **The launch rail ships off.** `LAUNCH_RAIL_ENABLED` defaults to false and `LAUNCH_RAIL_LIVE` defaults to `0`. Both must be turned on, and paper mode must be explicitly off, before a launch can send.
 - **Armed stops ship off.** `ARMED_STOPS` missing or `0` means a breached stop-loss or take-profit is a suggestion, not a sell. Set `ARMED_STOPS=1` only if you want those exits to sell without a fresh approval.
 - **The owner-position timeout ships off.** `OWNER_POS_AUTO_TIMEOUT` missing or `off` means a bag the bot did not buy stays pending until you `/manage` or `/leave`. It does not take the bag over, and it does not sell, when the 30-minute window ends. Set `OWNER_POS_AUTO_TIMEOUT=on` only if you want that timeout to manage the bag.
-- Skills are opt-in playbooks. They do not run because a base58 address appeared, and they do not tell an agent to edit `bots/`. Patches are proposed; the owner applies them.
+- Skills are opt-in playbooks. No skill is core, and none loads unless you explicitly invoke the sniper or name that skill. They do not run because a base58 address appeared. Suggest-only: patches are diffs in `owner_inbox/` for you; no trade without your fresh approval; the agent does not edit `bots/`.
 - Read the warning in the README before the first live start.

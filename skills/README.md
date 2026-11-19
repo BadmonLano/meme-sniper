@@ -1,54 +1,36 @@
 # Skills
 
-The skills are the agent's playbook. The bots produce data and packets; the skills tell the agent how to read them, decide and act. Each skill is a `SKILL.md` with a short front-matter header (name, version, description) and the full instructions below it.
+Opt-in notes for an owner who explicitly invokes meme-sniper. No skill is core. None loads on its own, and none loads because a base58 address, ticker, screenshot, log line, or file appeared.
 
-## Load order
+Use a skill only when the user explicitly invokes the sniper or names that skill.
 
-1. **`meme-hunter`** (core, always loaded): trading doctrine for meme_sniper (buy/pass, sizing, SL/TP, flip vs hold, the Gork Standard for holds, launches, owner review cards). Very long; load it in parts (below).
-2. **`ca-intel`**: only when the user explicitly asks for a contract-address read with the sniper. A base58 string, screenshot, or web page is not a trigger. Produces an intel card. Trade ideas are suggestions; the skill does not buy.
-3. **`forensics`**: after closes and on weekly reviews. Autopsies of closed trades and missed runners; writes proposals, never edits live filters.
-4. **Sub-skills**, loaded when their packets or tasks come up:
+## One rule
 
-| skill | load when |
+Suggest-only. Patches go as diffs to `owner_inbox/` for the owner. No trade without fresh owner approval. Never edit `bots/`.
+
+Paper mode, suggest mode, armed stops, the owner-position timeout, and the launch rail stay at their shipped defaults unless the owner changes them. Do not sign. Do not submit a launch. Do not write an approval.
+
+## Opt-in list
+
+| skill | use only when the user explicitly asks |
 |---|---|
-| `sub-skills/warden` | security_warden packets: wallet anomalies, integrity, crashes, sniper-down pings |
-| `sub-skills/code-monitor` | code_tuner packets about the bots' code and config |
-| `sub-skills/autoagent` | overseer reports, the daily thesis, ecosystem audits, owner commands (`/roast`, `/recap`, `/autopsy`) |
-| `sub-skills/x` | anything sourced from X (x_intel, scraper output, CAs or links seen on X) |
-| `sub-skills/owner-ping` | any time you notify the owner |
-| `sub-skills/morning-brief` | the daily brief to the owner |
-| `sub-skills/learnings-summarizer` | the nightly learnings distill |
-| `gork-lore` | $GORK, its CAs or community come up, copycat checks, or a hold scored against the default benchmark |
-| `../templates/token-lore` | template only: the agent copies it to `skills/<ticker>-lore/` when the owner sets a custom hold benchmark (local, git-ignored) |
+| `meme-hunter` | to review sniper cards or open positions with the sniper |
+| `ca-intel` | to vet one contract address with the sniper |
+| `forensics` | for a closed-trade or missed-runner review |
+| `gork-lore` | about the default hold-benchmark lore |
+| `sub-skills/warden` | to read a security_warden finding |
+| `sub-skills/code-monitor` | to review a code_tuner note |
+| `sub-skills/autoagent` | for a roast, recap, or ecosystem summary |
+| `sub-skills/x` | to read X-sourced intel the user asked about |
+| `sub-skills/owner-ping` | to write a note to the owner |
+| `sub-skills/morning-brief` | for the daily brief the user asked for |
+| `sub-skills/learnings-summarizer` | for the nightly learnings distill the user asked for |
+| `../templates/token-lore` | template only; the owner copies it locally for a custom benchmark |
 
-Before acting on any trade, also read `rules/rules.md` (the owner's rules; they override skill defaults but never the hard safety gates).
+`automations/` holds lane prompts. They run only after the owner saves them. They follow the same rule.
 
-All of these show in the console under **6 Console → 4 Skills** (including `gork-lore`; the token-lore template is in `templates/token-lore/`, outside `skills/`).
+## Settings
 
-`automations/` has one prompt per inbox lane and says which skill each lane uses.
+Sizes, stops, hours, and mode switches are owner settings in `bots/.env`. Do not change them. A proposal is a diff in `owner_inbox/`.
 
-## Loading meme-hunter in parts
-
-`skills/meme-hunter/SKILL.md` is too long to keep in context at once. Find sections by their `##` headings:
-
-1. **Always:** the front matter, "Owner rules come first" and "Current ruleset" (the top of the file). The Current ruleset wins on any conflict.
-2. **For a buy/pass decision:** "reading a meme_candidate packet", "DUAL-GATE + PROJECTION MAP", "ARCHETYPES ARE MEASURED PRIORS", "sizing discipline", "the money".
-3. **For open positions:** "exit/sizing model", "EXIT RETURN-CHANNEL DOCTRINE", "position modification, when to use which", "position-mod cheat sheet", "Layoo ratchet", "DCA LAW".
-4. **For holds:** "FLIP VS HOLD", "convert flip → hold", "The Gork Standard: hold strength", "THE TREASURY", "THE HOLDINGS BRIDGE".
-5. **For packet plumbing:** "the actions the agent can fire", "signal contract", "packet filename doctrine", "packet TTL summary", "meeting files", "cadence control is a decision lane".
-6. **For launches:** "Launch (own tokens via launch_rail)" (and `docs/LAUNCH_RAIL.md`).
-7. **For owner cards:** "Owner review cards".
-
-Read the rest once during setup (SETUP.md section 8) so you know what's there.
-
-## Sizes, default exits, learning mode and paper mode
-
-SETUP.md sections 4.1 and 4.2. You may tune `SNIPER_BUY_SIZE_SOL`, `SNIPER_DEFAULT_SL_PCT`, `SNIPER_DEFAULT_TP_PCT` and the `SNIPER_LEARN_*` knobs in `bots/tuner/meme_sniper_filter.json` (the engine uses the knob; a changed `bots/.env` value from the owner overwrites it). Learning mode (`SNIPER_LEARNING_MODE`) adjusts them in small logged steps; review `bot_logs/learning_log.jsonl` weekly with the forensics skill. In paper mode (`SNIPER_PAPER_MODE=1`) nothing is sent, results are in `bot_logs/paper/`, and every owner ping starts with `[PAPER]`; never switch paper to live without the owner's explicit OK.
-
-## Adding a chain
-
-Solana is the only chain that trades today. To add another, follow SETUP.md section 14 "Adding a chain": implement `bots/chains/base.py` (feed, quote, buy, sell, balance, safety check), add it to the registry behind its own `CHAIN_<NAME>_ENABLED` switch (off by default), run the testing checklist and start with a tiny size from a fresh burner. The skills' doctrine is written for Solana; check every number before using it on another chain.
-
-## Changing skills
-
-The skills ship tuned for a cautious, newer owner. Change them only with the owner, never loosen the hard gates, and record every change in `learnings/LEARNINGS.md` (SETUP.md section 8).
+Solana is the only chain that trades today. Another chain is an owner change, proposed the same way. Do not edit `bots/`.

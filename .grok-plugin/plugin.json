@@ -1,7 +1,8 @@
 {
   "name": "meme-sniper",
-  "version": "1.0.17",
-  "description": "Open-source Solana meme-token research and trading bot. Paper mode and suggest mode are the defaults when their env vars are missing: nothing is signed, and buys and sells wait for the owner's approval. Armed stops, the owner-position timeout, and the launch rail ship off. Skills are opt-in playbooks: they suggest, they do not trade because an address appeared, and they do not edit the trading engine. The owner applies patches.",
+  "version": "1.0.18",
+  "alwaysApply": false,
+  "description": "Open-source Solana meme-token research and trading bot. Paper mode and suggest mode are the defaults when their env vars are missing: nothing is signed, and buys and sells wait for the owner's approval. Armed stops, the owner-position timeout, and the launch rail ship off. Skills are opt-in playbooks, used only when the user explicitly invokes the sniper: they suggest, they do not trade because an address appeared, and they do not edit the trading engine. The owner applies patches.",
   "author": {
     "name": "Bentayga Empire LLC",
     "url": "https://github.com/BadmonLano"
