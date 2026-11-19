@@ -131,7 +131,7 @@ def test_skills_and_manifests_do_not_hijack():
     for rel in (".cursor-plugin/plugin.json", ".grok-plugin/plugin.json"):
         plugin = json.loads((ROOT / rel).read_text(encoding="utf-8"))
         assert plugin["name"] == "meme-sniper"
-        assert plugin["version"] == "1.0.18"
+        assert plugin["version"] == "1.0.19"
         assert plugin["alwaysApply"] is False
         assert plugin["license"] == "MIT"
         desc = plugin["description"].lower()

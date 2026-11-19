@@ -1831,7 +1831,7 @@
       "src": "env"
     },
     "ACTIVE_HOURS": {
-      "label": "Active hours for new buys (loop runs 24/7; 00:00-23:59 = always)",
+      "label": "Active hours for new buys (00:00-23:59 = full day)",
       "section": "Pauses",
       "unit": "text",
       "src": "env"

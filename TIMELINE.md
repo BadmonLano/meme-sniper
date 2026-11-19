@@ -2,14 +2,17 @@
 
 Version history, newest first. Release numbers (v1.x) are the public repo; the engine inside keeps its own number (v14.3).
 
+## v1.0.19 (2026-11-19): wording only
+- History, the active-hours label, and the setup log line were reworded. `AGENT_MODE=auto` is described as an owner-only opt-in; the default stays `suggest`. No logic or defaults changed. Details: CHANGELOG.md.
+
 ## v1.0.18 (2026-11-19): skills are opt-in, short, and suggest-only
 - No skill is core or loaded on its own. Playbooks agree: suggest-only, patches in `owner_inbox/` for the owner, no trade without fresh owner approval, never edit `bots/`. Engine defaults unchanged. Details: CHANGELOG.md.
 
 ## v1.0.17 (2026-11-12): safe defaults, no agent hijack, no unapproved exits
 - Missing `SNIPER_PAPER_MODE` is paper. Live signing, armed stops, the owner-position timeout, and the launch rail are explicit opt-ins and ship off. Skills suggest; they do not trade on a stray address and they do not patch the engine. Details: CHANGELOG.md.
 
-## v1.0.16 (2026-10-29): always-on loop, active hours, tunable lane cadences
-- Always-on loop docs, `ACTIVE_HOURS`/`ACTIVE_TZ`/`ACTIVE_DAYS` (default always on), tunable `LANE_CADENCE_*`, asked right after `AGENT_MODE`. Details: CHANGELOG.md.
+## v1.0.16 (2026-10-29): active hours and tunable lane cadences
+- Active-hours docs, `ACTIVE_HOURS`/`ACTIVE_TZ`/`ACTIVE_DAYS` (default full day), tunable `LANE_CADENCE_*`, asked right after `AGENT_MODE`. Details: CHANGELOG.md.
 
 ## v1.0.15 (2026-10-29): owner-chosen agent autonomy (suggest by default), paper by default, league mode
 For the cursor.directory review: the published skills no longer override human-in-the-loop.
