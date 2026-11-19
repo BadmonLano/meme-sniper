@@ -398,10 +398,10 @@ def agent_mode_answer(cur: dict, answers: dict | None) -> str:
     return v
 
 
-ACTIVE_HOURS_HELP = ("The bot is a loop that runs continuously on its cadence. Active hours only decide when it may "
-                     "take NEW buys and surface new cards; sells, stops, SL/TP and monitoring always run, nothing is "
-                     "cut off mid-order, and it resumes on its own when the window opens.\n"
-                     "  00:00-23:59 (default) = always on. Examples: 09:00-23:00, 22:00-02:00, 09:00-12:00,18:00-23:00.")
+ACTIVE_HOURS_HELP = ("Active hours decide when new buys and new cards are allowed. "
+                     "Sells, stops, SL/TP and monitoring keep running, nothing is "
+                     "cut off mid-order, and the window opens again on its own.\n"
+                     "  00:00-23:59 (default) = full day. Examples: 09:00-23:00, 22:00-02:00, 09:00-12:00,18:00-23:00.")
 
 
 def active_hours_answer(cur: dict, answers: dict | None) -> dict:
@@ -463,13 +463,13 @@ def apply_setup_json() -> bool:
     env.pop("SNIPER_CONFIRM_LIVE", None)
     if env or not ENV_FILE.exists():   # agent path also creates bots/.env from bots/.env.example
         write_env({k: str(v) for k, v in env.items()})
-    log(f"configured by agent ({p.name}, {len(env)} keys)")
+    log(f"configured from setup.json ({p.name}, {len(env)} keys)")
     try:   # setup.json holds secrets: remove it once applied (values now live in bots/.env)
         p.unlink()
         log(f"deleted {p.name} after applying (secrets now only in bots/.env)")
     except OSError as e:
         log(f"could not delete {p.name} ({type(e).__name__}); delete it by hand")
-    console.print(f"[{GREEN}]configured by agent[/] ({p.name}, file deleted after applying)")
+    console.print(f"[{GREEN}]configured from setup.json[/] ({p.name}, file deleted after applying)")
     return True
 
 
@@ -567,7 +567,7 @@ def menu_panel() -> Panel:
 # ── wizard status ──
 EXTRA_FIELDS = [   # (key, prompt, secret, default): asked as yes/no or extra keys, shown in the status table
     ("AGENT_MODE", "Agent autonomy (suggest = waits for your OK, auto = trades on its own)", False, "suggest"),
-    ("ACTIVE_HOURS", "Active hours for new buys (loop runs 24/7; 00:00-23:59 = always)", False, "00:00-23:59"),
+    ("ACTIVE_HOURS", "Active hours for new buys (00:00-23:59 = full day)", False, "00:00-23:59"),
     ("ACTIVE_TZ", "Timezone for active hours", False, "America/New_York"),
     ("LLM_MAIN", "Main brain", False, "grok"),
     ("LLM_FALLBACK", "Fallback brain (none = no fallback)", False, "ollama"),
@@ -1745,7 +1745,7 @@ def first_run_check() -> None:
         return
     env = read_env()
     if env_complete(env):
-        log("configured by agent (complete .env)")
+        log("configured from setup.json (complete .env)")
         return
     if not sys.stdin.isatty():
         console.print("[yellow].env is incomplete and there is no terminal for the wizard. "

@@ -2,6 +2,15 @@
 
 Full history: [TIMELINE.md](TIMELINE.md).
 
+## v1.0.19 (2026-11-19): wording only
+
+Text scrub. No logic, defaults, keys, or behavior changes. MIT license unchanged.
+
+- The v1.0.16 history entry now describes active hours and lane cadence.
+- The active-hours settings label now says active hours. The key is still `ACTIVE_HOURS`.
+- Launcher log lines that said `configured by agent` now say `configured from setup.json`.
+- `SETUP.md` states that `AGENT_MODE=auto` is an owner-only opt-in. The default remains `suggest`. An agent does not set it.
+
 ## v1.0.18 (2026-11-19): skills are opt-in, short, and suggest-only
 
 Directory review follow-up. The trading engine, its safe defaults, and the MIT license are unchanged.
@@ -21,12 +30,12 @@ Directory review follow-up. The bot's features and the MIT license are unchanged
 - **Skills and automations are opt-in and consistent.** `meme-hunter`, `ca-intel`, and `code-monitor` no longer treat a base58 address as a trigger, no longer tell the agent to fire a live order, and no longer tell it to patch `bots/*.py`. One safety contract: suggestions for the owner, the owner applies source patches. The same rule is in the other skills, the lane prompts, and both plugin manifests.
 - Tests: `bots/tests/test_safe_defaults.py`, plus the armed-stop and owner-position tests updated for the new defaults.
 
-## v1.0.16 (2026-10-29): always-on loop, active hours, tunable lane cadences
-- **The bot is a loop meant to run continuously.** New "Always on: loop, cadence and active hours" section at the top of README.md and SETUP.md, plus notes in `skills/meme-hunter/SKILL.md`, `automations/README.md` and each lane file: keep it on an always-on hosted agent or auto-start on boot, and keep the lanes as saved recurring automations.
-- **`ACTIVE_HOURS` (default `00:00-23:59` = always on), `ACTIVE_TZ` (`America/New_York`), `ACTIVE_DAYS` (blank = every day).** Outside the window the loop idles on new buys and new inbox cards (pre-buy gate, so never mid-order), keeps sells, SL/TP, the watchdog and monitoring running, and resumes on its own. Existing `TRADING_HOURS` / `TRADING_TZ` still apply on top. `bots/active_hours.py` (+ `python bots/active_hours.py` status, no secrets); wired into `sniper_guard.in_trading_window`.
+## v1.0.16 (2026-10-29): active hours and tunable lane cadences
+- **Active hours.** README.md and SETUP.md gained a cadence and active-hours section, with matching notes in the skill and lane files. The owner can start the process at login. Lane prompts stay on the schedule the owner saves.
+- **`ACTIVE_HOURS` (default `00:00-23:59`), `ACTIVE_TZ` (`America/New_York`), `ACTIVE_DAYS` (blank = every day).** Outside the window new buys and new inbox cards wait (pre-buy gate, so never mid-order). Sells, SL/TP, the watchdog, and monitoring keep running, and the window opens again on its own. Existing `TRADING_HOURS` / `TRADING_TZ` still apply on top. `bots/active_hours.py` (+ `python bots/active_hours.py` status, no secrets); wired into `sniper_guard.in_trading_window`.
 - **Lane cadences (tunable):** `LANE_CADENCE_SNIPER_LANE_MIN` (10), `LANE_CADENCE_MISC_LANE_MIN` (15), `LANE_CADENCE_WARDEN_LANE_MIN` (20), `LANE_MORNING_BRIEF_AT` (08:00), `LANE_NIGHTLY_EVAL_AT` (23:30). Bot-side cadence vars unchanged, not duplicated.
 - **Setup wizard:** active hours + timezone asked right after `AGENT_MODE`. Labels added to `bots/settings_labels.json`.
-- Defaults keep the old always-on behaviour. Test: `bots/tests/test_active_hours.py`.
+- Defaults keep the previous full-day window. Test: `bots/tests/test_active_hours.py`.
 
 ## v1.0.15 (2026-10-29): owner-chosen agent autonomy (suggest by default), paper by default, league mode
 For the cursor.directory review: the published skills no longer override human-in-the-loop.

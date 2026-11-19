@@ -3,7 +3,7 @@
 **Who this is for:** the agent setting Meme Sniper up for its owner. "You" is the agent; "the owner" is the human whose wallet and rules these are. Read this once, top to bottom, before the first start. The skills ship as tested defaults; change them only with the owner (section 8).
 
 > **Ask these first, in this order (wizard menu 2 does the same):**
-> 1. **Agent autonomy (`AGENT_MODE`).** `suggest` (default, preselected): the agent proposes every buy and sell and the bot waits for the owner's `/approve <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto`: **warning** - the agent buys and sells on its own inside the caps with no per-trade sign-off. The wizard makes the owner type `AUTO`; `setup.json` needs `"AGENT_CONFIRM_AUTO": "AUTO"`. Never pick auto for the owner.
+> 1. **Agent autonomy (`AGENT_MODE`).** Default is `suggest` (preselected). Only the owner may opt into `auto`. An agent never sets `AGENT_MODE`. In `suggest`, the agent proposes every buy and sell and the bot waits for the owner's `/approve <id>` (owner commands) or `python bots/approve.py <id>`; unanswered suggestions expire after `AGENT_MODE_APPROVAL_TTL_MIN` (60). `auto` is an owner-only opt-in: the owner types `AUTO` in the wizard, or the owner puts `"AGENT_CONFIRM_AUTO": "AUTO"` in `setup.json`. Do not write `auto` for them.
 > 2. **Active hours (`ACTIVE_HOURS` + `ACTIVE_TZ`).** Default `00:00-23:59`, `America/New_York`. The process the owner started keeps its cadence either way. The window only gates new buys and new cards. A sell still needs fresh owner approval unless the owner set `ARMED_STOPS=1` (shipped off). See "Cadence and active hours" below.
 > 3. **Paper or live (`SNIPER_PAPER_MODE`).** Paper is the default for new setups (`bots/.env.example` ships `SNIPER_PAPER_MODE=1`): every trade is simulated at real quotes, nothing is signed or sent, and no wallet private key is needed. **Live keys are opt-in**: only after the owner chooses live does the wizard ask for the burner wallet's private key, with a warning, and leaving paper needs `LIVE` typed (section 4.2). Token launches stay off-chain (`LAUNCH_RAIL_LIVE=0`) until the owner sets `LAUNCH_RAIL_LIVE=1`. Make sure the owner uses a burner wallet and understands the warning in the README before going live.
 
@@ -102,7 +102,7 @@ You can also run one option directly: `--start`, `--dashboard`, `--wizard`, `--l
 
 **First run.** If `bots/.env` is missing or incomplete (wallet key, RPC or model key), the wizard opens on its own.
 
-**Agent first-run questions.** Your SI agent also asks you, before the first trade, starting with agent autonomy (`AGENT_MODE`, default `suggest`), then active hours (`ACTIVE_HOURS`, default `00:00-23:59` = always, + `ACTIVE_TZ`), then paper or live (default paper), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = always). See README "Safety caps and your settings".
+**Owner first-run answers.** Before the first trade the owner sets agent autonomy (`AGENT_MODE`, default `suggest`; `auto` is an owner-only opt-in and is never set by an agent), then active hours (`ACTIVE_HOURS`, default `00:00-23:59`, + `ACTIVE_TZ`), then paper or live (default paper), launch rail (default off), buy size, daily loss stop (0.5 SOL), daily buy cap (10), stop loss / trailing stop, same-token cooldown (72h), loss-streak pause (3 losses, 2h), max open positions (3), and trading hours + time zone (blank = full day). See README "Safety caps and your settings".
 
 **Skipping the wizard (`setup.json`).** You can configure without the interactive wizard. Put `setup.json` in the repo root (or in `bots/`):
 
@@ -112,7 +112,7 @@ You can also run one option directly: `--start`, `--dashboard`, `--wizard`, `--l
          "OWN_LAUNCH_MODE": "hold", "OWN_LAUNCH_TREASURY_PCT": "50", "SNIPER_LEARN_REST": "true"}}
 ```
 
-Every key under `env` is written into `bots/.env`, and the launcher logs `configured by agent` to `bot_logs/sniper_launcher.log`. A complete `bots/.env` also skips the wizard. `setup.json` holds secrets, so the launcher **deletes it right after applying it** (it is also in `.gitignore`). Write it again for the next change.
+Every key under `env` is written into `bots/.env`, and the launcher logs `configured from setup.json` to `bot_logs/sniper_launcher.log`. A complete `bots/.env` also skips the wizard. `setup.json` holds secrets, so the launcher **deletes it right after applying it** (it is also in `.gitignore`). Write it again for the next change. `AGENT_MODE=auto` in that file still needs the owner's own `"AGENT_CONFIRM_AUTO": "AUTO"`. An agent does not set `auto`.
 
 ## 2. Who's running it
 
@@ -145,7 +145,7 @@ Every bot resolves paths from this one root and creates any missing folders on f
 
 ## 4. Wallet, sizes and going live
 
-These settings are configuration. How much the agent does on its own is the owner's `AGENT_MODE` choice (asked first): in `suggest` (default) every buy and sell waits for the owner's OK; in `auto` the agent trades inside these caps without asking.
+These settings are configuration. `AGENT_MODE` defaults to `suggest`: every buy and sell waits for the owner's OK. `auto` is an owner-only opt-in. An agent never sets it. After the owner has opted in, buys and sells in `auto` proceed inside these caps without a fresh approval.
 
 Ask the owner to pick one:
 
@@ -153,7 +153,7 @@ Ask the owner to pick one:
 - **Learn as it goes.** Fill in only the wallet and keys, and run on the defaults. The system tightens itself from results and logs every change to `bot_logs/`.
 - **Mix.** The owner sets the must-haves and the rest learns.
 
-The safety switches set here (wallet, buy sizes, `LAUNCH_RAIL_ENABLED` off / `LAUNCH_RAIL_LIVE` off by default) stay as the owner set them. After this step you operate within the owner's chosen mode: in `suggest` (default) you propose buys and sells and the bot holds them for the owner's OK; in `auto` you send them and owner-ping is notify-only. KOL/dev list changes, learnings promotion and profit sweeps follow the owner's rules; code patches are always proposed to the owner as a card with a diff. Launches stay off-chain until the owner sets `LAUNCH_RAIL_LIVE=1`.
+The safety switches set here (wallet, buy sizes, `LAUNCH_RAIL_ENABLED` off / `LAUNCH_RAIL_LIVE` off by default) stay as the owner set them. After this step, stay inside the owner's chosen mode. In `suggest` (default) propose buys and sells and the bot holds them for the owner's OK. If the owner has opted into `auto`, trade signals are not held and owner-ping is notify-only. An agent never sets `AGENT_MODE`. KOL/dev list changes, learnings promotion and profit sweeps follow the owner's rules; code patches are diffs in `owner_inbox/` for the owner. Launches stay off-chain until the owner sets `LAUNCH_RAIL_LIVE=1`.
 
 **Launching without asking: who decides.** Two things decide it, and nothing else:
 
